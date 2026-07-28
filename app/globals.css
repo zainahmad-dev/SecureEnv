@@ -14,6 +14,9 @@
   --accent-dev: #14b8a6;
   --accent-staging: #f59e0b;
   --accent-production: #e11d48;
+
+  /* Semantic status (errors, destructive actions — distinct from the production accent) */
+  --danger: #dc2626;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,6 +31,8 @@
     --accent-dev: #2dd4bf;
     --accent-staging: #fbbf24;
     --accent-production: #fb7185;
+
+    --danger: #f87171;
   }
 }
 
@@ -41,6 +46,7 @@
   --color-accent-dev: var(--accent-dev);
   --color-accent-staging: var(--accent-staging);
   --color-accent-production: var(--accent-production);
+  --color-danger: var(--danger);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
