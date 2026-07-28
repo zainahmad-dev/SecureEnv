@@ -8,7 +8,13 @@ const focusRing =
 
 const fieldClass = `w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink/40 ${focusRing}`;
 
-export function LoginForm({ initialError }: { initialError?: string }) {
+export function LoginForm({
+  initialError,
+  next,
+}: {
+  initialError?: string;
+  next?: string;
+}) {
   const [state, formAction, isPending] = useActionState<LoginState, FormData>(logIn, {
     error: initialError ?? null,
     email: "",
@@ -16,6 +22,8 @@ export function LoginForm({ initialError }: { initialError?: string }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {next && <input type="hidden" name="next" value={next} />}
+
       {state.error && (
         <p
           role="alert"

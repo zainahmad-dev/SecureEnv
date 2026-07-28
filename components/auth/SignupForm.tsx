@@ -10,7 +10,7 @@ const fieldClass = `w-full rounded-lg border border-line bg-paper px-3 py-2 text
 
 const initialState: SignupState = { error: null, info: null, email: "" };
 
-export function SignupForm() {
+export function SignupForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState<SignupState, FormData>(
     signUp,
     initialState,
@@ -29,6 +29,8 @@ export function SignupForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {next && <input type="hidden" name="next" value={next} />}
+
       {state.error && (
         <p
           role="alert"

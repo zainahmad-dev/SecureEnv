@@ -5,16 +5,17 @@ import { LoginForm } from "@/components/auth/LoginForm";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  const signupHref = next ? `/signup?next=${encodeURIComponent(next)}` : "/signup";
 
   return (
     <>
       <h1 className="mb-1 text-xl font-semibold text-ink">Log in</h1>
       <p className="mb-6 text-sm text-ink/60">Welcome back to SecureEnv.</p>
 
-      <LoginForm initialError={error} />
+      <LoginForm initialError={error} next={next} />
 
       <div className="my-6 flex items-center gap-3" aria-hidden="true">
         <span className="h-px flex-1 bg-line" />
@@ -22,11 +23,11 @@ export default async function LoginPage({
         <span className="h-px flex-1 bg-line" />
       </div>
 
-      <GitHubButton />
+      <GitHubButton next={next} />
 
       <p className="mt-6 text-center text-sm text-ink/60">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-medium text-accent hover:underline">
+        <Link href={signupHref} className="font-medium text-accent hover:underline">
           Sign up
         </Link>
       </p>

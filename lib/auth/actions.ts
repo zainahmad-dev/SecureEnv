@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { resolveNextPath } from "@/lib/auth/next-path";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = { error: string | null; email: string };
@@ -27,7 +28,7 @@ export async function logIn(_prevState: LoginState, formData: FormData): Promise
     return { error: friendlyMessage(error.message), email };
   }
 
-  redirect("/dashboard");
+  redirect(resolveNextPath(formData.get("next") as string | null));
 }
 
 export async function signUp(_prevState: SignupState, formData: FormData): Promise<SignupState> {
@@ -41,12 +42,13 @@ export async function signUp(_prevState: SignupState, formData: FormData): Promi
     return { error: "Password must be at least 6 characters.", info: null, email };
   }
 
+  const next = resolveNextPath(formData.get("next") as string | null);
   const origin = (await headers()).get("origin");
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${origin}/auth/callback` },
+    options: { emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}` },
   });
 
   if (error) {
@@ -65,7 +67,7 @@ export async function signUp(_prevState: SignupState, formData: FormData): Promi
     };
   }
 
-  redirect("/dashboard");
+  redirect(next);
 }
 
 export async function logOut() {
@@ -74,12 +76,13 @@ export async function logOut() {
   redirect("/login");
 }
 
-export async function signInWithGitHub() {
+export async function signInWithGitHub(formData: FormData) {
+  const next = resolveNextPath(formData.get("next") as string | null);
   const origin = (await headers()).get("origin");
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "github",
-    options: { redirectTo: `${origin}/auth/callback` },
+    options: { redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}` },
   });
 
   if (error || !data.url) {
