@@ -31,6 +31,43 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Environment variables
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Set these in Vercel under **Project Settings → Environment Variables** (apply to
+Production, Preview, and Development). Values come from the Supabase dashboard:
+**Project Settings → API Keys**.
+
+| Variable | Used for | Exposure |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Base URL of the Supabase project, used by every Supabase client (browser, server, admin) | Public — safe in the browser bundle |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The publishable/anon key (`sb_publishable_...`). Respects Row Level Security; used for all normal user-facing reads/writes | Public — safe in the browser bundle |
+| `SUPABASE_SERVICE_ROLE_KEY` | The secret key (`sb_secret_...`). Bypasses Row Level Security; used only by server-only code (e.g. `/api/health`'s database check, the Phase 12 seed script) | **Secret — server-only.** Never prefix with `NEXT_PUBLIC_`, never import into a Client Component or `lib/supabase/client.ts` |
+
+Double-check the anon and secret keys are copied from the **same** Supabase
+project as the URL — Supabase returns a generic `Invalid API key` error if a
+key from a different project is pasted in.
+
+### Steps
+
+1. Push this repo to GitHub (or GitLab/Bitbucket).
+2. In the [Vercel dashboard](https://vercel.com/new), import the repository.
+   Framework preset auto-detects as Next.js — leave build/output settings default
+   (`next build`, `.next`).
+3. Under **Environment Variables**, add the three variables from the table above.
+4. Click **Deploy**. Vercel runs `npm run build`, which also runs `next lint`
+   and the TypeScript check — the build fails if either has errors.
+5. Once deployed, verify the database connection is live by visiting
+   `https://<your-deployment>.vercel.app/api/health`. A healthy deploy returns
+   HTTP 200 with `{"status":"ok", ...}`; if Supabase is unreachable or a key is
+   wrong, it returns HTTP 503 with `{"status":"degraded", ...}` and an error
+   message (never a secret value).
+6. Every subsequent push to the connected branch redeploys automatically —
+   Vercel Preview deployments run against the same Preview environment
+   variables set in step 3.
+
+### Local development
+
+Copy `.env.example` to `.env.local` and fill in the same three values. Never
+commit `.env.local` — it's already covered by `.gitignore`.
+
+Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more general details.
