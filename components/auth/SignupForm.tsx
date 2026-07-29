@@ -10,7 +10,20 @@ const fieldClass = `w-full rounded-lg border border-line bg-paper px-3 py-2 text
 
 const initialState: SignupState = { error: null, info: null, email: "" };
 
-export function SignupForm({ next }: { next?: string }) {
+type SignupFormProps = {
+  next?: string;
+  /** Pre-fills the email field — used by the invite flow, where the address is known. */
+  email?: string;
+  /**
+   * Locks the pre-filled address. A UI convenience only: a readOnly input is
+   * trivially bypassed, and nothing downstream trusts it. The invite is bound
+   * to its address inside accept_team_invite(), which compares the signed-in
+   * account's real email against the one invited.
+   */
+  emailLocked?: boolean;
+};
+
+export function SignupForm({ next, email, emailLocked = false }: SignupFormProps) {
   const [state, formAction, isPending] = useActionState<SignupState, FormData>(
     signUp,
     initialState,
@@ -50,8 +63,9 @@ export function SignupForm({ next }: { next?: string }) {
           type="email"
           required
           autoComplete="email"
-          defaultValue={state.email}
-          className={fieldClass}
+          readOnly={emailLocked}
+          defaultValue={state.email || email}
+          className={`${fieldClass}${emailLocked ? " text-ink/70" : ""}`}
         />
       </div>
 

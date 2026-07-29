@@ -126,6 +126,74 @@ export type Database = {
           },
         ];
       };
+      team_invites: {
+        // token_hash is part of the row's shape but is NOT selectable by the
+        // anon/authenticated roles — the Phase 14 migration revokes it at the
+        // column level. Only the service-role client and the SECURITY DEFINER
+        // invite functions can read it; never add it to a .select() list.
+        Row: {
+          id: string;
+          team_id: string;
+          email: string;
+          role: Database["public"]["Enums"]["team_role"];
+          token_hash: string;
+          invited_by: string | null;
+          expires_at: string;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          revoked_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          email: string;
+          role?: Database["public"]["Enums"]["team_role"];
+          token_hash: string;
+          invited_by?: string | null;
+          expires_at: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          email?: string;
+          role?: Database["public"]["Enums"]["team_role"];
+          token_hash?: string;
+          invited_by?: string | null;
+          expires_at?: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "team_invites_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "team_invites_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "team_invites_accepted_by_fkey";
+            columns: ["accepted_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       projects: {
         Row: {
           id: string;
@@ -368,10 +436,27 @@ export type Database = {
     Views: {
       [_ in never]: never;
     };
+    // Only the functions the app actually calls are listed. The SECURITY
+    // DEFINER helpers that exist purely to be called from inside RLS policies
+    // (is_team_member, project_team_id, environment_team_id,
+    // can_bootstrap_team_admin, shares_team_with) are deliberately absent —
+    // nothing should be reaching them over PostgREST.
     Functions: {
       create_team: {
         Args: { p_name: string; p_slug: string };
         Returns: Database["public"]["Tables"]["teams"]["Row"];
+      };
+      team_has_member_with_email: {
+        Args: { p_team_id: string; p_email: string };
+        Returns: boolean;
+      };
+      get_invite_preview: {
+        Args: { p_token_hash: string };
+        Returns: Database["public"]["CompositeTypes"]["invite_preview"];
+      };
+      accept_team_invite: {
+        Args: { p_token_hash: string };
+        Returns: Database["public"]["CompositeTypes"]["accept_invite_result"];
       };
     };
     Enums: {
@@ -384,8 +469,32 @@ export type Database = {
         | "permission_change"
         | "invite";
     };
+    // Both status fields are `text` in Postgres, so a generated file would
+    // type them as plain `string`. They're narrowed to the exact set the
+    // functions can return so the callers' switch statements are checked for
+    // exhaustiveness — if a new status is added to the SQL, adding it here is
+    // what makes TypeScript point at every place that has to handle it.
     CompositeTypes: {
-      [_ in never]: never;
+      invite_preview: {
+        status: "valid" | "invalid" | "expired" | "revoked" | "used";
+        team_name: string | null;
+        email: string | null;
+        role: Database["public"]["Enums"]["team_role"] | null;
+        expires_at: string | null;
+      };
+      accept_invite_result: {
+        status:
+          | "accepted"
+          | "already_member"
+          | "not_authenticated"
+          | "invalid"
+          | "expired"
+          | "revoked"
+          | "used"
+          | "email_mismatch";
+        team_slug: string | null;
+        team_name: string | null;
+      };
     };
   };
 };
@@ -406,3 +515,7 @@ export type TablesUpdate<
 
 export type Enums<PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]> =
   PublicSchema["Enums"][PublicEnumNameOrOptions];
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"],
+> = PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions];

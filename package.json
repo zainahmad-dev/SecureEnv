@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:rls": "tsx scripts/test-rls.ts"
+    "test:rls": "tsx scripts/test-rls.ts",
+    "test:invites": "tsx scripts/test-invites.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

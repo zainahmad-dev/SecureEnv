@@ -42,6 +42,13 @@ Production, Preview, and Development). Values come from the Supabase dashboard:
 | `NEXT_PUBLIC_SUPABASE_URL` | Base URL of the Supabase project, used by every Supabase client (browser, server, admin) | Public — safe in the browser bundle |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The publishable/anon key (`sb_publishable_...`). Respects Row Level Security; used for all normal user-facing reads/writes | Public — safe in the browser bundle |
 | `SUPABASE_SERVICE_ROLE_KEY` | The secret key (`sb_secret_...`). Bypasses Row Level Security; used only by server-only code (e.g. `/api/health`'s database check, the Phase 12 seed script) | **Secret — server-only.** Never prefix with `NEXT_PUBLIC_`, never import into a Client Component or `lib/supabase/client.ts` |
+| `INVITE_TOKEN_SECRET` | Keys the HMAC that turns a team invite token into the digest stored in `team_invites.token_hash`. The plaintext token is never stored, so this is what makes an invite link verifiable — and what keeps a database leak from yielding usable links | **Secret — server-only.** Rotating it invalidates every outstanding invite; existing memberships are unaffected |
+
+Generate an invite secret with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+```
 
 Double-check the anon and secret keys are copied from the **same** Supabase
 project as the URL — Supabase returns a generic `Invalid API key` error if a
@@ -53,7 +60,7 @@ key from a different project is pasted in.
 2. In the [Vercel dashboard](https://vercel.com/new), import the repository.
    Framework preset auto-detects as Next.js — leave build/output settings default
    (`next build`, `.next`).
-3. Under **Environment Variables**, add the three variables from the table above.
+3. Under **Environment Variables**, add the variables from the table above.
 4. Click **Deploy**. Vercel runs `npm run build`, which also runs `next lint`
    and the TypeScript check — the build fails if either has errors.
 5. Once deployed, verify the database connection is live by visiting
@@ -67,7 +74,7 @@ key from a different project is pasted in.
 
 ### Local development
 
-Copy `.env.example` to `.env.local` and fill in the same three values. Never
+Copy `.env.example` to `.env.local` and fill in the same values. Never
 commit `.env.local` — it's already covered by `.gitignore`.
 
 Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more general details.

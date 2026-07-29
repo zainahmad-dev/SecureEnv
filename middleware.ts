@@ -2,7 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback", "/api/health"];
+// /invite/<token> has to render for someone with no account at all — that's
+// the whole point of an invitation. The page shows nothing without a valid
+// token, and accepting still requires a session (enforced in
+// accept_team_invite, not here).
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback", "/api/health", "/invite"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
