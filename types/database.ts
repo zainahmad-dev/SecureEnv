@@ -264,6 +264,106 @@ export type Database = {
           },
         ];
       };
+      audit_logs: {
+        Row: {
+          id: string;
+          team_id: string;
+          user_id: string | null;
+          action: Database["public"]["Enums"]["audit_action"];
+          target_type: string;
+          target_id: string;
+          environment_id: string | null;
+          metadata: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          user_id?: string | null;
+          action: Database["public"]["Enums"]["audit_action"];
+          target_type: string;
+          target_id: string;
+          environment_id?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          user_id?: string | null;
+          action?: Database["public"]["Enums"]["audit_action"];
+          target_type?: string;
+          target_id?: string;
+          environment_id?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "audit_logs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "audit_logs_environment_id_fkey";
+            columns: ["environment_id"];
+            isOneToOne: false;
+            referencedRelation: "environments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      security_scans: {
+        Row: {
+          id: string;
+          project_id: string;
+          environment_id: string;
+          score: number;
+          issues: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          environment_id: string;
+          score: number;
+          issues?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          environment_id?: string;
+          score?: number;
+          issues?: Json;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "security_scans_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "security_scans_environment_id_fkey";
+            columns: ["environment_id"];
+            isOneToOne: false;
+            referencedRelation: "environments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -273,6 +373,13 @@ export type Database = {
     };
     Enums: {
       team_role: "admin" | "member" | "readonly";
+      audit_action:
+        | "create"
+        | "read"
+        | "update"
+        | "delete"
+        | "permission_change"
+        | "invite";
     };
     CompositeTypes: {
       [_ in never]: never;
