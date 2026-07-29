@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { AppShell } from "@/components/shell/AppShell";
+import { getSidebarData } from "@/lib/shell/sidebar-data";
 import { getTeamAccess } from "@/lib/teams/queries";
 import { ROLE_LABELS } from "@/lib/teams/roles";
 
@@ -18,9 +19,10 @@ export default async function TeamDashboardPage({
   if (!access) notFound();
 
   const { team, role } = access;
+  const sidebar = await getSidebarData(team.id);
 
   return (
-    <AppShell breadcrumb={[team.name]}>
+    <AppShell breadcrumb={[team.name]} sidebar={sidebar}>
       <div className="flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-semibold text-ink">{team.name}</h1>

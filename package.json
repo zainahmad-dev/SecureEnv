@@ -10,7 +10,8 @@
     "lint": "eslint",
     "test:rls": "tsx scripts/test-rls.ts",
     "test:invites": "tsx scripts/test-invites.ts",
-    "test:members": "tsx scripts/test-members.ts"
+    "test:members": "tsx scripts/test-members.ts",
+    "test:profiles": "tsx scripts/test-profiles.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

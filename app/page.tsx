@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/shell/AppShell";
+import { getSidebarData } from "@/lib/shell/sidebar-data";
 
 const environments = [
   { name: "development", swatch: "bg-accent-dev" },
@@ -6,9 +7,11 @@ const environments = [
   { name: "production", swatch: "bg-accent-production" },
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  const sidebar = await getSidebarData();
+
   return (
-    <AppShell breadcrumb={["Website", "Overview"]}>
+    <AppShell breadcrumb={["Overview"]} sidebar={sidebar}>
       <div className="flex flex-col items-center gap-8 py-8">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-3xl font-semibold text-ink">SecureEnv</h1>

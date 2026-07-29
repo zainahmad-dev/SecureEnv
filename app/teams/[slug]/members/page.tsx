@@ -7,6 +7,7 @@ import { RemoveMemberButton } from "@/components/teams/RemoveMemberButton";
 import { formatDate } from "@/lib/format/date";
 import { describeExpiry, hasExpired } from "@/lib/format/expiry";
 import { getPendingInvites } from "@/lib/invites/queries";
+import { getSidebarData } from "@/lib/shell/sidebar-data";
 import { getTeamAccess, getTeamMembers } from "@/lib/teams/queries";
 import { ROLE_LABELS } from "@/lib/teams/roles";
 
@@ -29,9 +30,10 @@ export default async function TeamMembersPage({
   const { team, userId, role } = access;
   const isAdmin = role === "admin";
 
-  const [members, pendingInvites] = await Promise.all([
+  const [members, pendingInvites, sidebar] = await Promise.all([
     getTeamMembers(team.id),
     getPendingInvites(team.id),
+    getSidebarData(team.id),
   ]);
 
   // The team's last admin can't be demoted or removed — the trigger in the
@@ -40,7 +42,7 @@ export default async function TeamMembersPage({
   const adminCount = members.filter((member) => member.role === "admin").length;
 
   return (
-    <AppShell breadcrumb={[team.name, "Members"]}>
+    <AppShell breadcrumb={[team.name, "Members"]} sidebar={sidebar}>
       <div className="flex flex-col gap-8">
         <div>
           <h1 className="text-2xl font-semibold text-ink">Members</h1>
