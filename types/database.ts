@@ -369,7 +369,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      create_team: {
+        Args: { p_name: string; p_slug: string };
+        Returns: Database["public"]["Tables"]["teams"]["Row"];
+      };
     };
     Enums: {
       team_role: "admin" | "member" | "readonly";

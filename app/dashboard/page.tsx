@@ -1,20 +1,11 @@
-import { AppShell } from "@/components/shell/AppShell";
-import { LogoutButton } from "@/components/auth/LogoutButton";
-import { getCurrentUser } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
+import { getFirstTeamSlug } from "@/lib/teams/queries";
 
+// Not a real page — /dashboard is the stable post-login redirect target
+// wired through Phases 5/6 (login, signup, and middleware's `next` param all
+// point here). It just resolves onward: no team yet -> onboarding, otherwise
+// straight to that team's own dashboard at /teams/[slug].
 export default async function DashboardPage() {
-  const user = await getCurrentUser();
-
-  return (
-    <AppShell breadcrumb={["Dashboard"]}>
-      <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
-          <p className="text-ink/60">Signed in as {user?.email}.</p>
-        </div>
-
-        <LogoutButton />
-      </div>
-    </AppShell>
-  );
+  const slug = await getFirstTeamSlug();
+  redirect(slug ? `/teams/${slug}` : "/onboarding");
 }

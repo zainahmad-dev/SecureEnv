@@ -4,14 +4,30 @@
  *
  * Run: npm run test:rls
  *
- * Creates two throwaway teams, each with its own throwaway user, using the
- * service-role client (bypasses RLS — fixture setup only). Then signs in as
- * each user through a plain anon-key client, the same path the real app
- * uses, and asserts that user A gets zero rows querying team B's data (and
- * vice versa) while still seeing their own team's data, then confirms a
- * cross-team INSERT is rejected too. Always cleans up everything it
- * created — teams, projects, and the two auth users — even if an
- * assertion fails or throws.
+ * Two checks:
+ *
+ * 1. Cross-team isolation: creates two throwaway teams, each with its own
+ *    throwaway user, using the service-role client (bypasses RLS — fixture
+ *    setup only). Then signs in as each user through a plain anon-key
+ *    client, the same path the real app uses, and asserts that user A gets
+ *    zero rows querying team B's data (and vice versa) while still seeing
+ *    their own team's data, then confirms a cross-team INSERT is rejected
+ *    too.
+ *
+ * 2. create_team() bootstrap (Phase 13): a brand-new user, with the admin
+ *    client used only to create their auth account — everything else goes
+ *    through their own signed-in client — calls the create_team() RPC and
+ *    asserts they land in team_members as admin and can immediately read
+ *    the team back. This specifically exercises the team_members INSERT
+ *    policy's bootstrap clause, which check #1 never touches (it seeds
+ *    team_members via the admin client, bypassing RLS entirely) — and which
+ *    had a real bug: its own subqueries against teams/team_members were
+ *    themselves filtered by those tables' SELECT policies, which made the
+ *    bootstrap check always fail. Fixed in
+ *    20260729180000_fix_team_bootstrap_policy.sql.
+ *
+ * Always cleans up everything it creates — teams, projects, and every
+ * throwaway auth user — even if an assertion fails or throws.
  */
 
 import { config as loadEnv } from "dotenv";
@@ -59,7 +75,7 @@ async function createTestUser(label: string) {
   return { userId: data.user.id, client: signedInClient };
 }
 
-async function main() {
+async function testCrossTeamIsolation() {
   const userA = await createTestUser("a");
   const userB = await createTestUser("b");
 
@@ -176,6 +192,44 @@ async function main() {
     await admin.auth.admin.deleteUser(userA.userId);
     await admin.auth.admin.deleteUser(userB.userId);
   }
+}
+
+async function testCreateTeamBootstrap() {
+  const userC = await createTestUser("c");
+  let teamCId: string | undefined;
+
+  try {
+    const slug = `rls-test-gamma-${runId}`;
+    const { data: team, error } = await userC.client.rpc("create_team", {
+      p_name: "RLS Test Team Gamma",
+      p_slug: slug,
+    });
+
+    check("create_team succeeds for a brand-new user", !error, error?.message);
+    if (error || !team) return;
+    teamCId = team.id;
+
+    check("create_team returns the expected slug", team.slug === slug);
+
+    const { data: membership } = await userC.client
+      .from("team_members")
+      .select("role")
+      .eq("team_id", teamCId)
+      .eq("user_id", userC.userId)
+      .maybeSingle();
+    check("the creator is inserted as admin in the same call", membership?.role === "admin");
+
+    const { data: ownTeam } = await userC.client.from("teams").select("id").eq("id", teamCId);
+    check("the creator can immediately read their own new team", (ownTeam?.length ?? 0) === 1);
+  } finally {
+    if (teamCId) await admin.from("teams").delete().eq("id", teamCId);
+    await admin.auth.admin.deleteUser(userC.userId);
+  }
+}
+
+async function main() {
+  await testCrossTeamIsolation();
+  await testCreateTeamBootstrap();
 
   const failed = results.filter((r) => !r.pass);
   for (const r of results) {
