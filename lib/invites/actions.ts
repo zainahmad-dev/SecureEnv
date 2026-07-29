@@ -1,0 +1,220 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/session";
+import { createInviteToken, hashInviteToken, isWellFormedInviteToken } from "@/lib/invites/token";
+import { createClient } from "@/lib/supabase/server";
+import type { Enums } from "@/types/database";
+
+const INVITE_TTL_DAYS = 7;
+
+const ROLES: readonly Enums<"team_role">[] = ["admin", "member", "readonly"];
+
+// Deliberately loose: the authoritative test of an address is whether the
+// invite ever reaches a real person. This only rejects input that obviously
+// isn't an address at all, rather than pretending to implement RFC 5322.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isRole(value: string): value is Enums<"team_role"> {
+  return (ROLES as readonly string[]).includes(value);
+}
+
+export type InviteState = {
+  error: string | null;
+  /** Present only on the response that created it — this is the one time it exists. */
+  inviteUrl: string | null;
+  email: string;
+  role: Enums<"team_role">;
+};
+
+/**
+ * Creates an invite and returns the link for the admin to send.
+ *
+ * There's no email provider in this stack, so the link is displayed rather than
+ * mailed. It's shown exactly once: only the token's HMAC digest is stored, so
+ * nothing — not this app, not the database — can reproduce it afterwards. The
+ * recovery path is to revoke and re-invite.
+ */
+export async function inviteMember(
+  _prevState: InviteState,
+  formData: FormData,
+): Promise<InviteState> {
+  const teamId = String(formData.get("teamId") ?? "");
+  const teamSlug = String(formData.get("teamSlug") ?? "");
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const roleInput = String(formData.get("role") ?? "member");
+  const role = isRole(roleInput) ? roleInput : "member";
+
+  const fail = (error: string): InviteState => ({ error, inviteUrl: null, email, role });
+
+  if (!teamId || !teamSlug) return fail("Something went wrong. Reload the page and try again.");
+  if (!email) return fail("Enter an email address.");
+  if (!EMAIL_PATTERN.test(email)) return fail("Enter a valid email address.");
+  if (!isRole(roleInput)) return fail("Choose a role.");
+
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = await createClient();
+
+  // RLS is the enforcement — the INSERT policy below rejects a non-admin
+  // outright. This check exists so a non-admin gets an explanation instead of
+  // an opaque database error, and so the membership probe that follows isn't
+  // even attempted by someone with no business making it.
+  const { data: membership } = await supabase
+    .from("team_members")
+    .select("role")
+    .eq("team_id", teamId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membership?.role !== "admin") {
+    return fail("Only team admins can invite people.");
+  }
+
+  const { data: alreadyMember } = await supabase.rpc("team_has_member_with_email", {
+    p_team_id: teamId,
+    p_email: email,
+  });
+
+  if (alreadyMember) {
+    return fail("That person is already a member of this team.");
+  }
+
+  // Re-inviting the same address supersedes the previous link rather than
+  // failing on the pending-invite unique index. The old token stops working
+  // the moment this lands, which is the behaviour someone re-sending an invite
+  // actually wants.
+  const { error: revokeError } = await supabase
+    .from("team_invites")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("team_id", teamId)
+    .eq("email", email)
+    .is("accepted_at", null)
+    .is("revoked_at", null);
+
+  if (revokeError) {
+    return fail("Could not replace the existing invite. Try again.");
+  }
+
+  const { token, tokenHash } = createInviteToken();
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  const { error: insertError } = await supabase.from("team_invites").insert({
+    team_id: teamId,
+    email,
+    role,
+    token_hash: tokenHash,
+    invited_by: user.id,
+    expires_at: expiresAt.toISOString(),
+  });
+
+  if (insertError) {
+    // 23505 = unique_violation on the pending-invite index: someone else
+    // invited this address between the revoke above and this insert.
+    if (insertError.code === "23505") {
+      return fail("There's already a pending invite for that email. Reload to see it.");
+    }
+    return fail("Could not create the invite. Try again.");
+  }
+
+  const requestHeaders = await headers();
+  const origin = requestHeaders.get("origin") ?? `https://${requestHeaders.get("host") ?? ""}`;
+
+  revalidatePath(`/teams/${teamSlug}/members`);
+
+  return { error: null, inviteUrl: `${origin}/invite/${token}`, email: "", role };
+}
+
+export type RevokeInviteState = { error: string | null };
+
+/** Revokes a pending invite. revoked_at is the only column an admin may update. */
+export async function revokeInvite(
+  _prevState: RevokeInviteState,
+  formData: FormData,
+): Promise<RevokeInviteState> {
+  const inviteId = String(formData.get("inviteId") ?? "");
+  const teamSlug = String(formData.get("teamSlug") ?? "");
+
+  if (!inviteId || !teamSlug) {
+    return { error: "Something went wrong. Reload the page and try again." };
+  }
+
+  const supabase = await createClient();
+
+  // No admin check here beyond RLS: the UPDATE policy already restricts this to
+  // admins of the invite's team, and the column grant restricts it to
+  // revoked_at, so there is nothing this can do that a policy doesn't allow.
+  const { error } = await supabase
+    .from("team_invites")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", inviteId)
+    .is("accepted_at", null)
+    .is("revoked_at", null);
+
+  if (error) {
+    return { error: "Could not revoke that invite." };
+  }
+
+  revalidatePath(`/teams/${teamSlug}/members`);
+
+  return { error: null };
+}
+
+export type AcceptInviteState = { error: string | null };
+
+const ACCEPT_FAILURE_MESSAGES: Record<string, string> = {
+  invalid: "This invite link isn't valid. Ask the team admin to send a new one.",
+  expired: "This invite has expired. Ask the team admin to send a new one.",
+  revoked: "This invite was revoked. Ask the team admin to send a new one.",
+  used: "This invite has already been used.",
+  email_mismatch:
+    "This invite was sent to a different email address. Sign in with that address to accept it.",
+  not_authenticated: "Sign in to accept this invitation.",
+};
+
+/**
+ * Accepts an invitation for the signed-in user.
+ *
+ * Deliberately a POST-only action rather than something the accept page does on
+ * load: a GET that mutates would let a link preview, prefetcher or crawler burn
+ * a single-use invite before the invited person ever sees the page.
+ *
+ * The real work — validating the token, matching the address, claiming the
+ * invite and inserting the membership — happens inside accept_team_invite(), in
+ * one transaction. Doing it here in several client calls couldn't be atomic and
+ * couldn't insert the membership row at all: Phase 11's policies forbid a
+ * stranger adding themselves to a team, which is exactly what this is.
+ */
+export async function acceptInvite(
+  _prevState: AcceptInviteState,
+  formData: FormData,
+): Promise<AcceptInviteState> {
+  const token = String(formData.get("token") ?? "");
+
+  if (!isWellFormedInviteToken(token)) {
+    return { error: ACCEPT_FAILURE_MESSAGES.invalid };
+  }
+
+  const user = await getCurrentUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/invite/${token}`)}`);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("accept_team_invite", {
+    p_token_hash: hashInviteToken(token),
+  });
+
+  if (error || !data) {
+    return { error: "Could not accept the invitation. Try again." };
+  }
+
+  if (data.status === "accepted" || data.status === "already_member") {
+    redirect(`/teams/${data.team_slug}`);
+  }
+
+  return { error: ACCEPT_FAILURE_MESSAGES[data.status] ?? "Could not accept the invitation." };
+}
