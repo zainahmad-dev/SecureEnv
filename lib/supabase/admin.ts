@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabaseUrl } from "@/lib/supabase/env";
+import type { Database } from "@/types/database";
 
 function requiredServiceRoleKey(): string {
   const value = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -21,7 +22,7 @@ function requiredServiceRoleKey(): string {
  * call createAdminClient() need it.
  */
 export function createAdminClient() {
-  return createClient(supabaseUrl, requiredServiceRoleKey(), {
+  return createClient<Database>(supabaseUrl, requiredServiceRoleKey(), {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

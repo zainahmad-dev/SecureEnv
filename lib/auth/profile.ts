@@ -1,12 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import type { Tables } from "@/types/database";
 
-export type Profile = {
-  id: string;
-  display_name: string | null;
-  avatar_initials: string;
-  created_at: string;
-};
+export type Profile = Tables<"profiles">;
 
 export async function getCurrentProfile(): Promise<Profile | null> {
   const user = await getCurrentUser();

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
+import type { Database } from "@/types/database";
 
 /**
  * Supabase client for Server Components and Route Handlers. Reads and writes
@@ -9,7 +10,7 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
