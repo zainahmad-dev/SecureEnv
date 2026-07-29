@@ -17,22 +17,30 @@ export type Database = {
   public: {
     Tables: {
       profiles: {
+        // The `authenticated` role's grant is column-restricted (Phase 16
+        // migration) to display_name, avatar_initials, last_team_id — id and
+        // created_at appear here for shape-completeness with what a real
+        // generated file would show, but an ordinary client's own .update()
+        // can't actually touch them.
         Row: {
           id: string;
           display_name: string | null;
           avatar_initials: string;
+          last_team_id: string | null;
           created_at: string;
         };
         Insert: {
           id: string;
           display_name?: string | null;
           avatar_initials: string;
+          last_team_id?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           display_name?: string | null;
           avatar_initials?: string;
+          last_team_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -41,6 +49,13 @@ export type Database = {
             columns: ["id"];
             isOneToOne: true;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "profiles_last_team_id_fkey";
+            columns: ["last_team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
             referencedColumns: ["id"];
           },
         ];

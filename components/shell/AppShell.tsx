@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { TopBar } from "@/components/shell/TopBar";
+import type { SidebarData } from "@/lib/shell/sidebar-data";
 
 type AppShellProps = {
   children: React.ReactNode;
   breadcrumb?: string[];
+  sidebar: SidebarData;
 };
 
-const DEFAULT_BREADCRUMB = ["Workspace", "Overview"];
+const DEFAULT_BREADCRUMB = ["Overview"];
 
-export function AppShell({ children, breadcrumb = DEFAULT_BREADCRUMB }: AppShellProps) {
+export function AppShell({ children, breadcrumb = DEFAULT_BREADCRUMB, sidebar }: AppShellProps) {
   const [isDrawerOpen, setDrawerOpen] = useState(false);
 
   // Only listen while the drawer is open, so Escape elsewhere in the app is untouched.
@@ -28,7 +30,7 @@ export function AppShell({ children, breadcrumb = DEFAULT_BREADCRUMB }: AppShell
 
   return (
     <div className="flex min-h-screen bg-paper">
-      <Sidebar isOpen={isDrawerOpen} />
+      <Sidebar isOpen={isDrawerOpen} data={sidebar} />
 
       {isDrawerOpen && (
         <button
