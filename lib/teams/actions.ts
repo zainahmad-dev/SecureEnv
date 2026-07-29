@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { slugify, withRandomSuffix } from "@/lib/teams/slug";
+import { setLastTeam } from "@/lib/teams/queries";
+import { isReservedSlug, slugify, withRandomSuffix } from "@/lib/teams/slug";
 
 export type CreateTeamState = { error: string | null; name: string };
 
@@ -23,7 +24,11 @@ export async function createTeam(
 
   const supabase = await createClient();
   const baseSlug = slugify(name);
-  let slug = baseSlug;
+  // A team whose name slugifies to a reserved word (e.g. "New") would
+  // otherwise be permanently unreachable — masked by a static /teams/<word>
+  // route rather than caught by the database's uniqueness constraint, which
+  // wouldn't notice this at all.
+  let slug = isReservedSlug(baseSlug) ? withRandomSuffix(baseSlug) : baseSlug;
 
   for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
     // No .single() here: create_team() returns a single teams row directly
@@ -33,6 +38,14 @@ export async function createTeam(
     const { data, error } = await supabase.rpc("create_team", { p_name: name, p_slug: slug });
 
     if (!error) {
+      // Awaited, not fire-and-forget: this has to land before the redirect
+      // below, which throws internally and ends the action — anything
+      // scheduled after it would never run. created_by is the acting user's
+      // own id (create_team sets it to auth.uid()), so no extra lookup is
+      // needed to know whose preference this is.
+      if (data.created_by) {
+        await setLastTeam(data.created_by, data.id);
+      }
       redirect(`/teams/${data.slug}`);
     }
 

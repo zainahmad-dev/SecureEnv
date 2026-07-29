@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import type { Enums } from "@/types/database";
@@ -13,6 +14,56 @@ export async function getFirstTeamSlug(): Promise<string | null> {
     .maybeSingle();
 
   return data?.teams?.slug ?? null;
+}
+
+/**
+ * Records which team the user was last on. Best-effort and silent by design —
+ * this is a UX preference (Phase 16's switcher/landing-page logic), never an
+ * authorization value, so a failed write here must never surface as an error
+ * or block whatever the caller was actually doing.
+ */
+export async function setLastTeam(userId: string, teamId: string): Promise<void> {
+  try {
+    const supabase = await createClient();
+    await supabase.from("profiles").update({ last_team_id: teamId }).eq("id", userId);
+  } catch {
+    // Preference bookkeeping only — nothing here is worth surfacing.
+  }
+}
+
+/**
+ * Where /dashboard sends a signed-in user: their last-visited team if they're
+ * still on it, otherwise Phase 13's original "earliest-joined team" fallback,
+ * otherwise null (no team at all — /onboarding's job).
+ *
+ * The "still on it" check is just teams' own SELECT policy: it already scopes
+ * rows to teams the caller is a member of, so a stale last_team_id (left, or
+ * removed from, that team) simply returns no row here rather than needing a
+ * separate membership check.
+ */
+export async function getLandingTeamSlug(): Promise<string | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const supabase = await createClient();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("last_team_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.last_team_id) {
+    const { data: lastTeam } = await supabase
+      .from("teams")
+      .select("slug")
+      .eq("id", profile.last_team_id)
+      .maybeSingle();
+
+    if (lastTeam) return lastTeam.slug;
+  }
+
+  return getFirstTeamSlug();
 }
 
 export type TeamAccess = {
@@ -53,7 +104,41 @@ export async function getTeamAccess(slug: string): Promise<TeamAccess | null> {
 
   if (!membership) return null;
 
+  // Scheduled via after() rather than awaited: this is "last used team"
+  // bookkeeping for the switcher, not part of what this page is actually for,
+  // so it must never add latency (or a failure mode) to rendering the page.
+  after(() => setLastTeam(user.id, team.id));
+
   return { team, userId: user.id, role: membership.role };
+}
+
+export type UserTeamSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  role: Enums<"team_role">;
+};
+
+/**
+ * Every team the signed-in user belongs to, alphabetical by name — the team
+ * switcher's list. RLS already scopes team_members to the caller's own rows,
+ * so a non-member's teams are simply absent, nothing to filter here.
+ */
+export async function getUserTeams(): Promise<UserTeamSummary[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("team_members")
+    .select("role, teams(id, name, slug)")
+    .order("name", { referencedTable: "teams", ascending: true });
+
+  return (data ?? [])
+    .filter((row) => row.teams !== null)
+    .map((row) => ({
+      id: row.teams!.id,
+      name: row.teams!.name,
+      slug: row.teams!.slug,
+      role: row.role,
+    }));
 }
 
 export type TeamMember = {
