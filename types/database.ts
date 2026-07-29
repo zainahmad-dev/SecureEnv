@@ -450,6 +450,20 @@ export type Database = {
         Args: { p_team_id: string; p_email: string };
         Returns: boolean;
       };
+      // `returns table (...)` is a set, so this one really does come back as an
+      // array — unlike the composite-returning functions below it.
+      get_team_members: {
+        Args: { p_team_id: string };
+        Returns: {
+          member_id: string;
+          user_id: string;
+          role: Database["public"]["Enums"]["team_role"];
+          joined_at: string;
+          display_name: string | null;
+          avatar_initials: string | null;
+          email: string | null;
+        }[];
+      };
       get_invite_preview: {
         Args: { p_token_hash: string };
         Returns: Database["public"]["CompositeTypes"]["invite_preview"];

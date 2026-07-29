@@ -63,50 +63,29 @@ export type TeamMember = {
   joinedAt: string;
   displayName: string | null;
   initials: string;
+  email: string | null;
 };
 
 /**
- * A team's members, oldest first, with the display fields from their profile.
+ * A team's members, oldest first, with everything the members table renders.
  *
- * Two queries rather than one embedded select: team_members.user_id and
- * profiles.id both reference auth.users, but there's no foreign key *between*
- * those two tables, so PostgREST has no relationship to embed through.
- *
- * Emails aren't here — they live in auth.users, which no ordinary client can
- * read. Phase 15's members table needs them, and that's the phase that decides
- * how to expose them.
+ * Goes through get_team_members() rather than querying team_members directly
+ * because of the email: it lives in auth.users, which no ordinary client can
+ * read. That function re-checks membership itself, so a non-member gets the
+ * same empty result they'd get from RLS.
  */
 export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
   const supabase = await createClient();
 
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("id, user_id, role, created_at")
-    .eq("team_id", teamId)
-    .order("created_at", { ascending: true });
+  const { data } = await supabase.rpc("get_team_members", { p_team_id: teamId });
 
-  if (!members || members.length === 0) return [];
-
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, display_name, avatar_initials")
-    .in(
-      "id",
-      members.map((member) => member.user_id),
-    );
-
-  const profileById = new Map(profiles?.map((profile) => [profile.id, profile]));
-
-  return members.map((member) => {
-    const profile = profileById.get(member.user_id);
-
-    return {
-      id: member.id,
-      userId: member.user_id,
-      role: member.role,
-      joinedAt: member.created_at,
-      displayName: profile?.display_name ?? null,
-      initials: profile?.avatar_initials ?? "??",
-    };
-  });
+  return (data ?? []).map((member) => ({
+    id: member.member_id,
+    userId: member.user_id,
+    role: member.role,
+    joinedAt: member.joined_at,
+    displayName: member.display_name,
+    initials: member.avatar_initials ?? "??",
+    email: member.email,
+  }));
 }
