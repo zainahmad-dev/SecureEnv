@@ -1,4 +1,4 @@
-import { createCipheriv, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { masterKey } from "@/lib/crypto/master-key";
 
 /**
@@ -92,4 +92,84 @@ export function encryptSecret(plaintext: string): EncryptedSecret {
     iv: iv.toString("base64"),
     authTag: authTag.toString("base64"),
   };
+}
+
+/**
+ * Raised whenever a decrypt operation fails for any reason — a tampered
+ * ciphertext, a corrupted or truncated stored value, or the wrong master
+ * key. GCM's `final()` is what actually detects this (it verifies the auth
+ * tag before returning), so this class exists to give callers one specific,
+ * catchable type instead of a raw Node/OpenSSL exception — never a hint
+ * about *why* it failed beyond that, since that distinction is exactly what
+ * an attacker probing for a tampering oracle would want.
+ */
+export class DecryptionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DecryptionError";
+  }
+}
+
+/**
+ * Inverse of wrapDek: slices iv (12) || authTag (16) || ciphertext back out
+ * of the blob and decrypts the DEK under the master key. The entire
+ * decipher pipeline — construction, setAuthTag, update, and final — runs
+ * inside one try/catch: setAuthTag alone can throw synchronously on a
+ * malformed tag, and update/final can throw on a bad ciphertext, so
+ * catching only the last step would let some failure modes escape as raw
+ * crypto errors instead of DecryptionError.
+ */
+function unwrapDek(encryptedDek: string): Buffer {
+  try {
+    const blob = Buffer.from(encryptedDek, "base64");
+    const iv = blob.subarray(0, IV_LENGTH);
+    const authTag = blob.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
+    const ciphertext = blob.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
+
+    const decipher = createDecipheriv(ALGORITHM, masterKey, iv, {
+      authTagLength: AUTH_TAG_LENGTH,
+    });
+    decipher.setAuthTag(authTag);
+
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  } catch {
+    throw new DecryptionError("Failed to decrypt the data encryption key.");
+  }
+}
+
+/**
+ * Decrypts a stored secret back to its original plaintext.
+ *
+ * 1. Decrypt encryptedDek under the master key (see unwrapDek) to recover
+ *    the one-time DEK this value was encrypted under.
+ * 2. Use that DEK to decrypt encryptedValue, verifying the GCM auth tag in
+ *    the same step — GCM authenticates before it releases any output, so a
+ *    tampered ciphertext or tag causes `final()` to throw rather than
+ *    handing back corrupted bytes.
+ * 3. Any failure in that pipeline — wrong master key, tampered row, bad tag
+ *    length — is caught and re-thrown as DecryptionError. Nothing is
+ *    returned unless both `update` and `final` succeed, so there is no path
+ *    that returns partial or garbage plaintext.
+ *
+ * The recovered plaintext is returned to the caller and nowhere else — this
+ * function never logs it, caches it, or writes it to disk.
+ */
+export function decryptSecret({ encryptedValue, encryptedDek, iv, authTag }: EncryptedSecret): string {
+  const dek = unwrapDek(encryptedDek);
+
+  try {
+    const decipher = createDecipheriv(ALGORITHM, dek, Buffer.from(iv, "base64"), {
+      authTagLength: AUTH_TAG_LENGTH,
+    });
+    decipher.setAuthTag(Buffer.from(authTag, "base64"));
+
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(encryptedValue, "base64")),
+      decipher.final(),
+    ]);
+
+    return plaintext.toString("utf8");
+  } catch {
+    throw new DecryptionError("Failed to decrypt the value — the auth tag did not verify.");
+  }
 }
