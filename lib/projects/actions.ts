@@ -76,16 +76,15 @@ export async function createProject(
     return { error: CREATE_DENIED, name, description };
   }
 
-  const { data, error } = await supabase
-    .from("projects")
-    .insert({
-      team_id: teamId,
-      name,
-      description: description || null,
-      created_by: user.id,
-    })
-    .select("id")
-    .single();
+  // Goes through create_project() rather than a plain insert so the three
+  // default environments (Phase 18) are created in the same transaction —
+  // never chain .single() after .rpc() for a function that RETURNS a single
+  // row directly rather than SETOF, same gotcha as create_team().
+  const { data, error } = await supabase.rpc("create_project", {
+    p_team_id: teamId,
+    p_name: name,
+    p_description: description || null,
+  });
 
   if (error || !data) {
     return { error: "Could not create the project. Try again.", name, description };

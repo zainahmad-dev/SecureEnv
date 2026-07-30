@@ -461,6 +461,13 @@ export type Database = {
         Args: { p_name: string; p_slug: string };
         Returns: Database["public"]["Tables"]["teams"]["Row"];
       };
+      // Inserts the project plus its three default environments in one
+      // transaction — see the Phase 18 migration for why RETURNING is safe
+      // here even though create_team() above avoids it for teams.
+      create_project: {
+        Args: { p_team_id: string; p_name: string; p_description?: string | null };
+        Returns: Database["public"]["Tables"]["projects"]["Row"];
+      };
       team_has_member_with_email: {
         Args: { p_team_id: string; p_email: string };
         Returns: boolean;
