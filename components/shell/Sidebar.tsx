@@ -11,8 +11,11 @@ const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper";
 
 export function Sidebar({ isOpen, data }: SidebarProps) {
-  const { teams, currentTeamId, profile } = data;
+  const { teams, currentTeamId, projects, profile } = data;
   const currentTeam = teams.find((team) => team.id === currentTeamId) ?? null;
+  // Readonly members can view projects but not create them — the role
+  // already comes back with getUserTeams(), no extra query needed.
+  const canCreateProject = currentTeam !== null && currentTeam.role !== "readonly";
 
   return (
     <aside
@@ -35,14 +38,38 @@ export function Sidebar({ isOpen, data }: SidebarProps) {
         </section>
 
         <nav aria-label="Projects" className="mb-6">
-          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-ink/50">
-            Projects
-          </p>
-          {/* Projects don't exist as a built feature until Phase 17 — this is
-              an honest empty state, not a placeholder standing in for one. */}
-          <p className="px-2 text-sm text-ink/50">
-            {currentTeam ? "No projects yet." : "Select a team to see its projects."}
-          </p>
+          <div className="mb-2 flex items-center justify-between px-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink/50">Projects</p>
+            {currentTeam && canCreateProject && (
+              <Link
+                href={`/teams/${currentTeam.slug}/projects/new`}
+                aria-label="New project"
+                className={`rounded-md px-1.5 py-0.5 text-sm font-medium text-ink/50 hover:bg-card hover:text-ink ${focusRing}`}
+              >
+                +
+              </Link>
+            )}
+          </div>
+
+          {!currentTeam ? (
+            <p className="px-2 text-sm text-ink/50">Select a team to see its projects.</p>
+          ) : projects.length === 0 ? (
+            <p className="px-2 text-sm text-ink/50">No projects yet.</p>
+          ) : (
+            <ul className="space-y-1">
+              {projects.map((project) => (
+                <li key={project.id}>
+                  <Link
+                    href={`/teams/${currentTeam.slug}/projects/${project.id}`}
+                    className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm text-ink/80 hover:bg-card ${focusRing}`}
+                  >
+                    <span className="truncate">{project.name}</span>
+                    <span className="shrink-0 text-xs text-ink/40">{project.variableCount}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </nav>
 
         {currentTeam && (

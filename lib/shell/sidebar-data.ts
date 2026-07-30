@@ -1,10 +1,12 @@
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getTeamProjects, type ProjectSummary } from "@/lib/projects/queries";
 import { getUserTeams, type UserTeamSummary } from "@/lib/teams/queries";
 
 export type SidebarData = {
   teams: UserTeamSummary[];
   currentTeamId: string | null;
+  projects: ProjectSummary[];
   profile: {
     displayName: string | null;
     initials: string;
@@ -24,15 +26,17 @@ export type SidebarData = {
  * (like /teams/[slug]) that already resolved the same user via getTeamAccess.
  */
 export async function getSidebarData(currentTeamId: string | null = null): Promise<SidebarData> {
-  const [user, profile, teams] = await Promise.all([
+  const [user, profile, teams, projects] = await Promise.all([
     getCurrentUser(),
     getCurrentProfile(),
     getUserTeams(),
+    currentTeamId ? getTeamProjects(currentTeamId) : Promise.resolve([]),
   ]);
 
   return {
     teams,
     currentTeamId,
+    projects,
     profile: {
       displayName: profile?.display_name ?? null,
       initials: profile?.avatar_initials ?? "??",
