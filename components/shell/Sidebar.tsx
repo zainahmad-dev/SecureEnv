@@ -5,12 +5,14 @@ import type { SidebarData } from "@/lib/shell/sidebar-data";
 type SidebarProps = {
   isOpen: boolean;
   data: SidebarData;
+  /** Present only on pages scoped to a specific environment — see AppShell. */
+  envAccentVar?: string;
 };
 
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper";
 
-export function Sidebar({ isOpen, data }: SidebarProps) {
+export function Sidebar({ isOpen, data, envAccentVar }: SidebarProps) {
   const { teams, currentTeamId, projects, profile } = data;
   const currentTeam = teams.find((team) => team.id === currentTeamId) ?? null;
   // Readonly members can view projects but not create them — the role
@@ -26,8 +28,17 @@ export function Sidebar({ isOpen, data }: SidebarProps) {
       }`}
     >
       <div className="flex items-center gap-2 px-4 py-5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-paper">
+        <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-paper">
           SE
+          {/* The environment status dot — reads --env-accent by inheritance
+              from the AppShell root, so it never has to know which of the
+              three colours is active, only whether one is. */}
+          {envAccentVar && (
+            <span
+              aria-hidden="true"
+              className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[var(--env-accent)] ring-2 ring-paper"
+            />
+          )}
         </span>
         <span className="text-base font-semibold text-ink">SecureEnv</span>
       </div>

@@ -12,10 +12,12 @@ export function AddEnvironmentForm({
   projectId,
   teamId,
   teamSlug,
+  currentEnvironmentName,
 }: {
   projectId: string;
   teamId: string;
   teamSlug: string;
+  currentEnvironmentName: string;
 }) {
   const [state, formAction, isPending] = useActionState<AddEnvironmentState, FormData>(
     addEnvironment,
@@ -37,6 +39,7 @@ export function AddEnvironmentForm({
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="teamId" value={teamId} />
       <input type="hidden" name="teamSlug" value={teamSlug} />
+      <input type="hidden" name="currentEnvironmentName" value={currentEnvironmentName} />
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">

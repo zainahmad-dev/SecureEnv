@@ -10,6 +10,15 @@ import type { TeamRole } from "@/lib/teams/roles";
 const NAME_MAX_LENGTH = 30;
 const NAME_PATTERN = /^[a-z0-9-]+$/;
 
+// Phase 19 gives each environment its own URL segment,
+// /teams/[slug]/projects/[projectId]/[environmentName], a sibling of the
+// static .../settings route. A static segment always wins routing priority
+// over a dynamic one at the same level, so a custom environment literally
+// named "settings" would be permanently unreachable — masked by the settings
+// page rather than caught by the (project_id, name) unique constraint, which
+// wouldn't notice this at all. Same bug class as Phase 16's team-slug "new".
+const RESERVED_NAMES = new Set(["settings"]);
+
 const ADD_DENIED = "Only team admins and members can add environments.";
 const MANAGE_DENIED = "Only team admins can rename or delete environments.";
 const DEFAULT_PROTECTED = "The default environments can't be renamed or deleted.";
@@ -25,6 +34,9 @@ function validateName(name: string): string | null {
   }
   if (!NAME_PATTERN.test(name)) {
     return "Use lowercase letters, numbers, and hyphens only.";
+  }
+  if (RESERVED_NAMES.has(name)) {
+    return `"${name}" is reserved and can't be used as an environment name.`;
   }
   return null;
 }
@@ -53,6 +65,10 @@ export async function addEnvironment(
   const projectId = String(formData.get("projectId") ?? "");
   const teamId = String(formData.get("teamId") ?? "");
   const teamSlug = String(formData.get("teamSlug") ?? "");
+  // Whichever environment page the form was submitted from — Phase 19 gives
+  // every environment its own URL, so revalidating the bare project path
+  // wouldn't refresh the tab strip the user is actually looking at.
+  const currentEnvironmentName = String(formData.get("currentEnvironmentName") ?? "");
   const name = String(formData.get("name") ?? "")
     .trim()
     .toLowerCase();
@@ -60,7 +76,7 @@ export async function addEnvironment(
   const nameError = validateName(name);
   if (nameError) return { error: nameError, name };
 
-  if (!projectId || !teamId || !teamSlug) {
+  if (!projectId || !teamId || !teamSlug || !currentEnvironmentName) {
     return { error: "Something went wrong. Reload the page and try again.", name };
   }
 
@@ -102,7 +118,7 @@ export async function addEnvironment(
     };
   }
 
-  revalidatePath(`/teams/${teamSlug}/projects/${projectId}`);
+  revalidatePath(`/teams/${teamSlug}/projects/${projectId}/${currentEnvironmentName}`);
 
   return { error: null, name: "" };
 }
@@ -199,9 +215,10 @@ export async function renameEnvironment(
     };
   }
 
-  revalidatePath(`/teams/${teamSlug}/projects/${target.projectId}`);
-
-  return { error: null, name };
+  // The environment's name is its URL segment (Phase 19) — the page the user
+  // is standing on (.../<oldName>) no longer resolves to anything once the
+  // row's name has changed, so this has to navigate, not just revalidate.
+  redirect(`/teams/${teamSlug}/projects/${target.projectId}/${name}`);
 }
 
 export type DeleteEnvironmentState = { error: string | null };
@@ -226,7 +243,11 @@ export async function deleteEnvironment(
     return { error: "Could not delete the environment. Try again." };
   }
 
-  revalidatePath(`/teams/${teamSlug}/projects/${target.projectId}`);
-
-  return { error: null };
+  // Same reasoning as rename: the page the user is standing on no longer
+  // exists once this environment is gone, so navigate rather than
+  // revalidate in place. The bare project path redirects to whichever
+  // environment is first by sort order — always safe, since the three
+  // defaults can never be deleted, so at least one environment always
+  // remains.
+  redirect(`/teams/${teamSlug}/projects/${target.projectId}`);
 }
