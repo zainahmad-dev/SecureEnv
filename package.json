@@ -14,7 +14,8 @@
     "test:members": "tsx scripts/test-members.ts",
     "test:profiles": "tsx scripts/test-profiles.ts",
     "test:projects": "tsx scripts/test-projects.ts",
-    "test:environments": "tsx scripts/test-environments.ts"
+    "test:environments": "tsx scripts/test-environments.ts",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
