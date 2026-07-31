@@ -494,6 +494,16 @@ export type Database = {
         Args: { p_token_hash: string };
         Returns: Database["public"]["CompositeTypes"]["accept_invite_result"];
       };
+      // Resolves actor email/display_name for arbitrary audit_logs.user_id
+      // values, including former team members — see the Phase 30 migration.
+      get_audit_log_actors: {
+        Args: { p_team_id: string; p_user_ids: string[] };
+        Returns: {
+          user_id: string;
+          email: string | null;
+          display_name: string | null;
+        }[];
+      };
     };
     Enums: {
       team_role: "admin" | "member" | "readonly";
