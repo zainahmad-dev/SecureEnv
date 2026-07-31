@@ -5,11 +5,14 @@ import { DeleteEnvironmentButton } from "@/components/environments/DeleteEnviron
 import { EnvironmentTabs } from "@/components/environments/EnvironmentTabs";
 import { RenameEnvironmentForm } from "@/components/environments/RenameEnvironmentForm";
 import { AppShell } from "@/components/shell/AppShell";
+import { CreateVariableForm } from "@/components/variables/CreateVariableForm";
+import { VariablesList } from "@/components/variables/VariablesList";
 import { getProjectEnvironments } from "@/lib/environments/queries";
 import { environmentAccentVar, environmentPurpose } from "@/lib/environments/presentation";
 import { getSidebarData } from "@/lib/shell/sidebar-data";
 import { getProject } from "@/lib/projects/queries";
 import { getTeamAccess } from "@/lib/teams/queries";
+import { getEnvironmentVariables } from "@/lib/variables/queries";
 
 export default async function ProjectEnvironmentPage({
   params,
@@ -41,7 +44,13 @@ export default async function ProjectEnvironmentPage({
   const current = environments.find((env) => env.name === environmentName);
   if (!current) notFound();
 
+  const variables = await getEnvironmentVariables(current.id);
+
   const canManageEnvironments = role !== "readonly";
+  // Same gate as canManageEnvironments (RLS's "member" minimum for both
+  // variables and environments), named separately since they're different
+  // actions that just happen to share a role threshold right now.
+  const canCreateVariable = role !== "readonly";
   const purpose = environmentPurpose(current.name);
 
   return (
@@ -84,10 +93,6 @@ export default async function ProjectEnvironmentPage({
             {purpose && <p className="text-sm text-ink/60">{purpose}</p>}
           </div>
 
-          <p className="text-sm text-ink/60">
-            {current.variableCount} variable{current.variableCount === 1 ? "" : "s"}.
-          </p>
-
           {/* Only non-default environments are editable at all — admin
               rights alone aren't enough, the Phase 18 triggers reject a
               rename/delete of a default regardless of role. */}
@@ -111,6 +116,29 @@ export default async function ProjectEnvironmentPage({
             </div>
           )}
         </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-medium text-ink">
+            Variables <span className="text-sm font-normal text-ink/50">({variables.length})</span>
+          </h2>
+          <VariablesList variables={variables} canCreateVariable={canCreateVariable} />
+        </section>
+
+        {/* Absent rather than disabled for readonly members. Reveal
+            (Phase 26) and edit/delete (Phase 27) land inside VariablesList's
+            own row structure, not here. */}
+        {canCreateVariable && (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-lg font-medium text-ink">Add a variable</h2>
+            <CreateVariableForm
+              environmentId={current.id}
+              projectId={project.id}
+              teamId={team.id}
+              teamSlug={team.slug}
+              environmentName={current.name}
+            />
+          </section>
+        )}
 
         {/* Absent rather than disabled for readonly members — same pattern
             used throughout the members and projects screens. */}
