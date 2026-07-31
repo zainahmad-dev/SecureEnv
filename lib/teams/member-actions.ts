@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { logAudit } from "@/lib/audit";
 import { requireTeamAccess } from "@/lib/auth/team-access";
 import { createClient } from "@/lib/supabase/server";
 import { TEAM_ROLES, type TeamRole } from "@/lib/teams/roles";
@@ -94,7 +95,7 @@ export async function updateMemberRole(
   const loaded = await loadTarget(formData);
   if ("error" in loaded) return { error: loaded.error };
 
-  const { target, teamSlug } = loaded;
+  const { target, teamSlug, callerId } = loaded;
 
   if (target.role === roleInput) {
     return { error: null };
@@ -117,6 +118,15 @@ export async function updateMemberRole(
     return { error: error.code === "P0001" ? LAST_ADMIN_MESSAGE : "Could not change that role." };
   }
 
+  await logAudit({
+    teamId: target.teamId,
+    userId: callerId,
+    action: "permission_change",
+    targetType: "team_member",
+    targetId: target.id,
+    metadata: { from: target.role, to: roleInput },
+  });
+
   revalidatePath(`/teams/${teamSlug}/members`);
 
   return { error: null };
@@ -134,6 +144,24 @@ export async function removeMember(
   if (await wouldStrandTeam(target)) {
     return { error: LAST_ADMIN_MESSAGE };
   }
+
+  // Logged *before* the delete, not after like every other mutation in this
+  // app — deliberately. The audit_logs INSERT policy requires the acting
+  // user to currently be a member of the team; a self-removal deletes that
+  // very membership row, so logging afterward would have the caller's own
+  // team_members row already gone by the time this tries to insert, and
+  // RLS would silently reject the log (not the removal itself — logAudit
+  // never blocks that — just the audit row). Logging first avoids the race
+  // entirely; the delete below is only reachable after wouldStrandTeam and
+  // the admin-role check already passed, so it isn't expected to fail.
+  await logAudit({
+    teamId: target.teamId,
+    userId: callerId,
+    action: "delete",
+    targetType: "team_member",
+    targetId: target.id,
+    metadata: { role: target.role, self: target.userId === callerId },
+  });
 
   const supabase = await createClient();
   const { error } = await supabase

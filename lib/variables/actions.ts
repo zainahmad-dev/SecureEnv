@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit";
 import { requireTeamAccess } from "@/lib/auth/team-access";
 import { encryptSecret } from "@/lib/crypto/envelope";
 import { createClient } from "@/lib/supabase/server";
@@ -95,31 +96,45 @@ export async function createVariable(
   // ever reaches a database call, an error message, or a log line.
   const encrypted = encryptSecret(value);
 
-  const { error } = await supabase.from("variables").insert({
-    environment_id: environmentId,
-    key,
-    encrypted_value: encrypted.encryptedValue,
-    encrypted_dek: encrypted.encryptedDek,
-    iv: encrypted.iv,
-    auth_tag: encrypted.authTag,
-    description: description || null,
-    created_by: access.userId,
-    updated_by: access.userId,
-  });
+  const { data: created, error } = await supabase
+    .from("variables")
+    .insert({
+      environment_id: environmentId,
+      key,
+      encrypted_value: encrypted.encryptedValue,
+      encrypted_dek: encrypted.encryptedDek,
+      iv: encrypted.iv,
+      auth_tag: encrypted.authTag,
+      description: description || null,
+      created_by: access.userId,
+      updated_by: access.userId,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !created) {
     return {
       // 23505 = unique_violation on (environment_id, key). The key itself
       // isn't secret (rule #2/#3 are about values), so naming it here is
       // fine and helpful.
       error:
-        error.code === "23505"
+        error?.code === "23505"
           ? `A variable named ${key} already exists in this environment.`
           : "Could not save the variable. Try again.",
       key,
       description,
     };
   }
+
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "create",
+    targetType: "variable",
+    targetId: created.id,
+    environmentId,
+    metadata: { key },
+  });
 
   revalidatePath(`/teams/${teamSlug}/projects/${projectId}/${environmentName}`);
 
@@ -218,6 +233,20 @@ export async function updateVariable(
     };
   }
 
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "update",
+    targetType: "variable",
+    targetId: variableId,
+    environmentId,
+    // Not "valueChanged" — the audit metadata guard strips any key
+    // containing the word "value" as a whole word, on purpose (it can't
+    // tell a flag name from a field that holds one), so a field named that
+    // would silently vanish instead of recording anything.
+    metadata: { key, rotated: Boolean(value) },
+  });
+
   revalidatePath(`/teams/${teamSlug}/projects/${projectId}/${environmentName}`);
 
   return { error: null, key, description, submitted: true };
@@ -235,6 +264,8 @@ export async function deleteVariable(
   const teamId = String(formData.get("teamId") ?? "");
   const teamSlug = String(formData.get("teamSlug") ?? "");
   const environmentName = String(formData.get("environmentName") ?? "");
+  // The key name only — not secret, just context for the audit row below.
+  const key = String(formData.get("key") ?? "");
 
   if (!variableId || !environmentId || !projectId || !teamId || !teamSlug || !environmentName) {
     return { error: "Something went wrong. Reload the page and try again." };
@@ -256,6 +287,16 @@ export async function deleteVariable(
   if (error) {
     return { error: "Could not delete the variable. Try again." };
   }
+
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "delete",
+    targetType: "variable",
+    targetId: variableId,
+    environmentId,
+    metadata: key ? { key } : null,
+  });
 
   revalidatePath(`/teams/${teamSlug}/projects/${projectId}/${environmentName}`);
 

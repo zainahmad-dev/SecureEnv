@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { logAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { setLastTeam } from "@/lib/teams/queries";
@@ -57,6 +58,22 @@ export async function createTeam(
       if (data.created_by) {
         await setLastTeam(data.created_by, data.id);
       }
+
+      // Logged before redirect() — it throws internally, so nothing after
+      // it would ever run. The new team is its own audit context: there's
+      // no "parent" team_id to attribute this to, so it's logged against
+      // itself, the same way its first team_members row (inserted by
+      // create_team() in the same transaction) has nothing preceding it
+      // either.
+      await logAudit({
+        teamId: data.id,
+        userId: user.id,
+        action: "create",
+        targetType: "team",
+        targetId: data.id,
+        metadata: { name },
+      });
+
       redirect(`/teams/${data.slug}`);
     }
 

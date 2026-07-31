@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth/session";
 import { decryptSecret, DecryptionError } from "@/lib/crypto/envelope";
 import { createClient } from "@/lib/supabase/server";
@@ -49,13 +50,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Could not decrypt this value." }, { status: 500 });
   }
 
-  // Best-effort audit write. lib/audit.ts (Phase 29) is where every mutation
-  // site eventually funnels through one shared helper; until then this is
-  // a direct insert, using the exact RLS policy Phase 11 already wrote for
-  // this ("read" is itself an audited action, any role including readonly
-  // may log their own reads). A failure here must never block the reveal
-  // itself — the value already decrypted successfully, and the user asked
-  // to see it.
+  // Best-effort audit write via the shared Phase 29 helper — using the exact
+  // RLS policy Phase 11 already wrote for this ("read" is itself an audited
+  // action, any role including readonly may log their own reads). A failure
+  // here must never block the reveal itself — the value already decrypted
+  // successfully, and the user asked to see it. logAudit() guarantees both
+  // of those on its own; this route just has to resolve the team id first,
+  // since (unlike every action in lib/*/actions.ts) there's no
+  // client-supplied one to check against here in the first place — see
+  // lib/auth/team-access.ts's own docstring for why that's deliberate.
   const { data: environment } = await supabase
     .from("environments")
     .select("projects(team_id)")
@@ -64,20 +67,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const teamId = environment?.projects?.team_id;
 
   if (teamId) {
-    const { error: auditError } = await supabase.from("audit_logs").insert({
-      team_id: teamId,
-      user_id: user.id,
+    await logAudit({
+      teamId,
+      userId: user.id,
       action: "read",
-      target_type: "variable",
-      target_id: variable.id,
-      environment_id: variable.environment_id,
-      // The key name, never the value — matches the non-negotiable rule
-      // that metadata must never contain a secret.
+      targetType: "variable",
+      targetId: variable.id,
+      environmentId: variable.environment_id,
       metadata: { key: variable.key },
     });
-    if (auditError) {
-      console.error(`Failed to write audit log for variable reveal ${variable.id}:`, auditError.message);
-    }
   }
 
   return NextResponse.json({ value }, { headers: { "Cache-Control": "no-store" } });

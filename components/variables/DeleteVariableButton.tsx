@@ -42,6 +42,7 @@ export function DeleteVariableButton({
       <input type="hidden" name="teamId" value={teamId} />
       <input type="hidden" name="teamSlug" value={teamSlug} />
       <input type="hidden" name="environmentName" value={environmentName} />
+      <input type="hidden" name="key" value={variableKey} />
 
       {confirming ? (
         <div className="flex items-center gap-2">
