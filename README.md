@@ -85,3 +85,15 @@ Copy `.env.example` to `.env.local` and fill in the same values. Never
 commit `.env.local` — it's already covered by `.gitignore`.
 
 Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more general details.
+
+## Security
+
+- Secret values are encrypted at rest with per-variable AES-256-GCM envelope
+  encryption (`lib/crypto/envelope.ts`, tested in `lib/crypto/envelope.test.ts`) —
+  never stored in plaintext, never logged, never sent to a third party.
+- Every table is governed by Postgres Row Level Security
+  (`supabase/migrations/20260729160000_row_level_security.sql`).
+- [`docs/permission-audit.md`](docs/permission-audit.md) — a full audit of
+  every server action and route handler in this project for authorization,
+  with a `requireTeamAccess()` helper applied consistently across all of
+  them, and the two real gaps it found.

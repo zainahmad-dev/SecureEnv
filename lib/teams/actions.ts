@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { setLastTeam } from "@/lib/teams/queries";
 import { isReservedSlug, slugify, withRandomSuffix } from "@/lib/teams/slug";
@@ -21,6 +22,16 @@ export async function createTeam(
   if (name.length > 60) {
     return { error: "Team name must be 60 characters or fewer.", name };
   }
+
+  // There's no existing team to check membership/role against here — this
+  // *creates* one — so "authenticated" is the whole check. Phase 28 audit
+  // finding: this was previously missing entirely, relying only on
+  // create_team()'s own RLS-enforced INSERT (`to authenticated`) to reject
+  // a signed-out caller, which it does — but silently, surfacing as the
+  // generic "Could not create the team" message below rather than a
+  // redirect to /login like every other action in this codebase gives.
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
   const supabase = await createClient();
   const baseSlug = slugify(name);

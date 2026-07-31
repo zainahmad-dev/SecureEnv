@@ -20,3 +20,15 @@ export const ROLE_DESCRIPTIONS: Record<TeamRole, string> = {
   member: "can read and change variables",
   readonly: "can view variables, but never change them",
 };
+
+/**
+ * True when `role` is at least as privileged as `minRole`. Mirrors the SQL
+ * `is_team_member`'s own "role <= min_role" trick from the Phase 11
+ * migration — TEAM_ROLES is declared most-privileged-first, so a lower
+ * index means more privilege, and the comparison is the same array-order
+ * trick on both sides of the stack rather than two different notions of
+ * "sufficient role."
+ */
+export function roleAtLeast(role: TeamRole, minRole: TeamRole): boolean {
+  return TEAM_ROLES.indexOf(role) <= TEAM_ROLES.indexOf(minRole);
+}

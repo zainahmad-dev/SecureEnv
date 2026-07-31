@@ -191,6 +191,7 @@ export default async function TeamMembersPage({
                     {isAdmin && (
                       <RevokeInviteButton
                         inviteId={invite.id}
+                        teamId={team.id}
                         teamSlug={team.slug}
                         email={invite.email}
                       />

@@ -10,10 +10,12 @@ const initialState: RevokeInviteState = { error: null };
 
 export function RevokeInviteButton({
   inviteId,
+  teamId,
   teamSlug,
   email,
 }: {
   inviteId: string;
+  teamId: string;
   teamSlug: string;
   email: string;
 }) {
@@ -25,6 +27,7 @@ export function RevokeInviteButton({
   return (
     <form action={formAction} className="flex flex-col items-end gap-1">
       <input type="hidden" name="inviteId" value={inviteId} />
+      <input type="hidden" name="teamId" value={teamId} />
       <input type="hidden" name="teamSlug" value={teamSlug} />
 
       {/* The visible label is just "Revoke" — which of a dozen identical

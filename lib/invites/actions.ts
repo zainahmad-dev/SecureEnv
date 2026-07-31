@@ -4,9 +4,13 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
+import { requireTeamAccess } from "@/lib/auth/team-access";
 import { createInviteToken, hashInviteToken, isWellFormedInviteToken } from "@/lib/invites/token";
 import { createClient } from "@/lib/supabase/server";
 import type { Enums } from "@/types/database";
+
+const INVITE_DENIED = "Only team admins can invite people.";
+const REVOKE_DENIED = "Only team admins can revoke invites.";
 
 const INVITE_TTL_DAYS = 7;
 
@@ -56,25 +60,14 @@ export async function inviteMember(
   if (!EMAIL_PATTERN.test(email)) return fail("Enter a valid email address.");
   if (!isRole(roleInput)) return fail("Choose a role.");
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const supabase = await createClient();
-
   // RLS is the enforcement — the INSERT policy below rejects a non-admin
   // outright. This check exists so a non-admin gets an explanation instead of
   // an opaque database error, and so the membership probe that follows isn't
   // even attempted by someone with no business making it.
-  const { data: membership } = await supabase
-    .from("team_members")
-    .select("role")
-    .eq("team_id", teamId)
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const access = await requireTeamAccess(teamId, "admin", INVITE_DENIED);
+  if (!access.ok) return fail(access.error);
 
-  if (membership?.role !== "admin") {
-    return fail("Only team admins can invite people.");
-  }
+  const supabase = await createClient();
 
   const { data: alreadyMember } = await supabase.rpc("team_has_member_with_email", {
     p_team_id: teamId,
@@ -109,7 +102,7 @@ export async function inviteMember(
     email,
     role,
     token_hash: tokenHash,
-    invited_by: user.id,
+    invited_by: access.userId,
     expires_at: expiresAt.toISOString(),
   });
 
@@ -132,27 +125,43 @@ export async function inviteMember(
 
 export type RevokeInviteState = { error: string | null };
 
-/** Revokes a pending invite. revoked_at is the only column an admin may update. */
+/**
+ * Revokes a pending invite. revoked_at is the only column an admin may update.
+ *
+ * Phase 28 audit finding: this action previously had no explicit auth check
+ * at all — it relied entirely on RLS's UPDATE policy, with no
+ * `getCurrentUser()` call and no `requireTeamAccess()`. That's not a
+ * security hole (RLS still denies a non-admin's write), but RLS denies an
+ * UPDATE by matching zero rows and returning `error: null`, not by raising —
+ * so a denied revoke attempt silently reported success to the caller
+ * instead of an honest error. Fixed by checking explicitly first.
+ */
 export async function revokeInvite(
   _prevState: RevokeInviteState,
   formData: FormData,
 ): Promise<RevokeInviteState> {
   const inviteId = String(formData.get("inviteId") ?? "");
+  const teamId = String(formData.get("teamId") ?? "");
   const teamSlug = String(formData.get("teamSlug") ?? "");
 
-  if (!inviteId || !teamSlug) {
+  if (!inviteId || !teamId || !teamSlug) {
     return { error: "Something went wrong. Reload the page and try again." };
   }
 
+  const access = await requireTeamAccess(teamId, "admin", REVOKE_DENIED);
+  if (!access.ok) return { error: access.error };
+
   const supabase = await createClient();
 
-  // No admin check here beyond RLS: the UPDATE policy already restricts this to
-  // admins of the invite's team, and the column grant restricts it to
-  // revoked_at, so there is nothing this can do that a policy doesn't allow.
+  // The column grant restricts this to revoked_at, and the row-scoping
+  // below (team_id + still-pending) is exactly what an admin's own RLS
+  // policy already allows — this is now belt-and-suspenders, not the sole
+  // line of defense.
   const { error } = await supabase
     .from("team_invites")
     .update({ revoked_at: new Date().toISOString() })
     .eq("id", inviteId)
+    .eq("team_id", teamId)
     .is("accepted_at", null)
     .is("revoked_at", null);
 

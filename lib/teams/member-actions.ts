@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireTeamAccess } from "@/lib/auth/team-access";
 import { createClient } from "@/lib/supabase/server";
 import { TEAM_ROLES, type TeamRole } from "@/lib/teams/roles";
 
@@ -45,21 +45,10 @@ async function loadTarget(
     return { error: "Something went wrong. Reload the page and try again." };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const access = await requireTeamAccess(teamId, "admin", GENERIC_DENIED);
+  if (!access.ok) return { error: access.error };
 
   const supabase = await createClient();
-
-  const { data: caller } = await supabase
-    .from("team_members")
-    .select("role")
-    .eq("team_id", teamId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (caller?.role !== "admin") {
-    return { error: GENERIC_DENIED };
-  }
 
   const { data: target } = await supabase
     .from("team_members")
@@ -75,7 +64,7 @@ async function loadTarget(
   return {
     target: { id: target.id, userId: target.user_id, role: target.role, teamId: target.team_id },
     teamSlug,
-    callerId: user.id,
+    callerId: access.userId,
   };
 }
 

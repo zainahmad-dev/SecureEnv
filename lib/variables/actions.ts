@@ -1,11 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireTeamAccess } from "@/lib/auth/team-access";
 import { encryptSecret } from "@/lib/crypto/envelope";
 import { createClient } from "@/lib/supabase/server";
-import type { TeamRole } from "@/lib/teams/roles";
 import type { TablesUpdate } from "@/types/database";
 
 const KEY_MAX_LENGTH = 100;
@@ -35,21 +33,6 @@ function validateDescription(description: string): string | null {
     return `Description must be ${DESCRIPTION_MAX_LENGTH} characters or fewer.`;
   }
   return null;
-}
-
-async function getCallerRole(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  teamId: string,
-  userId: string,
-): Promise<TeamRole | null> {
-  const { data } = await supabase
-    .from("team_members")
-    .select("role")
-    .eq("team_id", teamId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  return data?.role ?? null;
 }
 
 // Deliberately has no `value` field, even to echo back on failure — unlike
@@ -90,18 +73,13 @@ export async function createVariable(
     return { error: "Something went wrong. Reload the page and try again.", key, description };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const supabase = await createClient();
-
   // Preflight only — RLS's own INSERT policy ("Members can create
   // variables", member-or-admin) is what actually enforces this; a readonly
   // member's own attempt would be rejected there regardless.
-  const role = await getCallerRole(supabase, teamId, user.id);
-  if (role === "readonly" || role === null) {
-    return { error: CREATE_DENIED, key, description };
-  }
+  const access = await requireTeamAccess(teamId, "member", CREATE_DENIED);
+  if (!access.ok) return { error: access.error, key, description };
+
+  const supabase = await createClient();
 
   const { data: environment } = await supabase
     .from("environments")
@@ -125,8 +103,8 @@ export async function createVariable(
     iv: encrypted.iv,
     auth_tag: encrypted.authTag,
     description: description || null,
-    created_by: user.id,
-    updated_by: user.id,
+    created_by: access.userId,
+    updated_by: access.userId,
   });
 
   if (error) {
@@ -195,23 +173,18 @@ export async function updateVariable(
     };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const supabase = await createClient();
-
   // Preflight only — RLS's own UPDATE policy ("member" minimum, same
   // threshold as create) is what actually enforces this.
-  const role = await getCallerRole(supabase, teamId, user.id);
-  if (role === "readonly" || role === null) {
-    return { error: UPDATE_DENIED, key, description, submitted: true };
-  }
+  const access = await requireTeamAccess(teamId, "member", UPDATE_DENIED);
+  if (!access.ok) return { error: access.error, key, description, submitted: true };
+
+  const supabase = await createClient();
 
   const update: TablesUpdate<"variables"> = {
     key,
     description: description || null,
     updated_at: new Date().toISOString(),
-    updated_by: user.id,
+    updated_by: access.userId,
   };
 
   // Only re-encrypt when a new value was actually entered. A fresh DEK is
@@ -267,17 +240,12 @@ export async function deleteVariable(
     return { error: "Something went wrong. Reload the page and try again." };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const supabase = await createClient();
-
   // Preflight only — RLS's own DELETE policy ("member" minimum) enforces
   // this regardless.
-  const role = await getCallerRole(supabase, teamId, user.id);
-  if (role === "readonly" || role === null) {
-    return { error: DELETE_DENIED };
-  }
+  const access = await requireTeamAccess(teamId, "member", DELETE_DENIED);
+  if (!access.ok) return { error: access.error };
+
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from("variables")

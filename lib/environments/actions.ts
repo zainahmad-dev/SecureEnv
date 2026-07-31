@@ -2,10 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireTeamAccess } from "@/lib/auth/team-access";
 import { isDefaultEnvironmentName } from "@/lib/environments/queries";
 import { createClient } from "@/lib/supabase/server";
-import type { TeamRole } from "@/lib/teams/roles";
 
 const NAME_MAX_LENGTH = 30;
 const NAME_PATTERN = /^[a-z0-9-]+$/;
@@ -41,21 +40,6 @@ function validateName(name: string): string | null {
   return null;
 }
 
-async function getCallerRole(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  teamId: string,
-  userId: string,
-): Promise<TeamRole | null> {
-  const { data } = await supabase
-    .from("team_members")
-    .select("role")
-    .eq("team_id", teamId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  return data?.role ?? null;
-}
-
 export type AddEnvironmentState = { error: string | null; name: string };
 
 export async function addEnvironment(
@@ -80,19 +64,14 @@ export async function addEnvironment(
     return { error: "Something went wrong. Reload the page and try again.", name };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const supabase = await createClient();
-
   // Preflight only — RLS's own INSERT policy enforces this; matches Phase
   // 17's project-creation gate exactly, since a member creating a project
   // already implies they can insert its environments (see the Phase 18
   // migration comment on why that policy had to widen the same way).
-  const role = await getCallerRole(supabase, teamId, user.id);
-  if (role === "readonly" || role === null) {
-    return { error: ADD_DENIED, name };
-  }
+  const access = await requireTeamAccess(teamId, "member", ADD_DENIED);
+  if (!access.ok) return { error: access.error, name };
+
+  const supabase = await createClient();
 
   const { data: last } = await supabase
     .from("environments")
@@ -145,15 +124,10 @@ async function loadTarget(
     return { error: "Something went wrong. Reload the page and try again." };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const access = await requireTeamAccess(teamId, "admin", MANAGE_DENIED);
+  if (!access.ok) return { error: access.error };
 
   const supabase = await createClient();
-
-  const role = await getCallerRole(supabase, teamId, user.id);
-  if (role !== "admin") {
-    return { error: MANAGE_DENIED };
-  }
 
   const { data: environment } = await supabase
     .from("environments")

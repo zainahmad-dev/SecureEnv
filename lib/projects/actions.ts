@@ -2,9 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireTeamAccess } from "@/lib/auth/team-access";
 import { createClient } from "@/lib/supabase/server";
-import type { TeamRole } from "@/lib/teams/roles";
 
 const NAME_MAX_LENGTH = 60;
 const DESCRIPTION_MAX_LENGTH = 500;
@@ -25,21 +24,6 @@ function validateDescription(description: string): string | null {
     return `Description must be ${DESCRIPTION_MAX_LENGTH} characters or fewer.`;
   }
   return null;
-}
-
-async function getCallerRole(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  teamId: string,
-  userId: string,
-): Promise<TeamRole | null> {
-  const { data } = await supabase
-    .from("team_members")
-    .select("role")
-    .eq("team_id", teamId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  return data?.role ?? null;
 }
 
 export type CreateProjectState = { error: string | null; name: string; description: string };
@@ -63,18 +47,13 @@ export async function createProject(
     return { error: "Something went wrong. Reload the page and try again.", name, description };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const supabase = await createClient();
-
   // Preflight only — RLS's own INSERT policy is what actually enforces this,
   // this exists so a readonly member sees a sentence instead of a raw
   // Postgres error from a policy they can't see the text of.
-  const role = await getCallerRole(supabase, teamId, user.id);
-  if (role === "readonly" || role === null) {
-    return { error: CREATE_DENIED, name, description };
-  }
+  const access = await requireTeamAccess(teamId, "member", CREATE_DENIED);
+  if (!access.ok) return { error: access.error, name, description };
+
+  const supabase = await createClient();
 
   // Goes through create_project() rather than a plain insert so the three
   // default environments (Phase 18) are created in the same transaction —
@@ -115,17 +94,12 @@ export async function renameProject(
     return { error: "Something went wrong. Reload the page and try again.", name, description };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
-  const supabase = await createClient();
-
   // Rename stays admin-only, matching Phase 11's original rule — Phase 17
   // only asked to widen creation to members, not this.
-  const role = await getCallerRole(supabase, teamId, user.id);
-  if (role !== "admin") {
-    return { error: MANAGE_DENIED, name, description };
-  }
+  const access = await requireTeamAccess(teamId, "admin", MANAGE_DENIED);
+  if (!access.ok) return { error: access.error, name, description };
+
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from("projects")
@@ -165,15 +139,10 @@ export async function deleteProject(
     return { error: "Type the project name exactly to confirm deletion." };
   }
 
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const access = await requireTeamAccess(teamId, "admin", MANAGE_DENIED);
+  if (!access.ok) return { error: access.error };
 
   const supabase = await createClient();
-
-  const role = await getCallerRole(supabase, teamId, user.id);
-  if (role !== "admin") {
-    return { error: MANAGE_DENIED };
-  }
 
   const { error } = await supabase
     .from("projects")
