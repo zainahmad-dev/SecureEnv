@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/format/date";
+import { RevealableValue } from "@/components/variables/RevealableValue";
 import type { VariableSummary } from "@/lib/variables/queries";
 
 const headingCellClass = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide";
@@ -8,16 +9,8 @@ const cellClass = "px-3 py-3 align-middle";
 const publicBadgeClass =
   "rounded-full border border-accent-dev/30 bg-accent-dev/10 px-2 py-0.5 text-xs font-medium text-accent-dev";
 
-/**
- * A fixed-width solid bar, never the value's own length — a masked value's
- * width must not leak how long the secret is.
- */
-function RedactionBar() {
-  return <span aria-label="Value hidden" className="inline-block h-4 w-28 rounded bg-ink/15" />;
-}
-
 function ValueCell({ variable }: { variable: VariableSummary }) {
-  if (!variable.isPublic) return <RedactionBar />;
+  if (!variable.isPublic) return <RevealableValue variableId={variable.id} />;
 
   if (variable.decryptionFailed) {
     return <span className="text-xs text-danger">Could not decrypt this value.</span>;
