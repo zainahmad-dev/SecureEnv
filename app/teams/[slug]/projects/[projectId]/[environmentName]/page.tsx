@@ -47,10 +47,12 @@ export default async function ProjectEnvironmentPage({
   const variables = await getEnvironmentVariables(current.id);
 
   const canManageEnvironments = role !== "readonly";
-  // Same gate as canManageEnvironments (RLS's "member" minimum for both
-  // variables and environments), named separately since they're different
-  // actions that just happen to share a role threshold right now.
-  const canCreateVariable = role !== "readonly";
+  // Same gate as canManageEnvironments (RLS's "member" minimum for
+  // variables and environments alike), named separately since they're
+  // different actions that just happen to share a role threshold. Now
+  // covers create, edit, and delete — Phase 27 widened it, RLS already
+  // used the same "member" threshold for all three from the start.
+  const canManageVariables = role !== "readonly";
   const purpose = environmentPurpose(current.name);
 
   return (
@@ -121,13 +123,21 @@ export default async function ProjectEnvironmentPage({
           <h2 className="text-lg font-medium text-ink">
             Variables <span className="text-sm font-normal text-ink/50">({variables.length})</span>
           </h2>
-          <VariablesList variables={variables} canCreateVariable={canCreateVariable} />
+          <VariablesList
+            variables={variables}
+            environmentId={current.id}
+            projectId={project.id}
+            teamId={team.id}
+            teamSlug={team.slug}
+            environmentName={current.name}
+            canManageVariables={canManageVariables}
+          />
         </section>
 
         {/* Absent rather than disabled for readonly members. Reveal
-            (Phase 26) and edit/delete (Phase 27) land inside VariablesList's
+            (Phase 26) and edit/delete (Phase 27) live inside VariablesList's
             own row structure, not here. */}
-        {canCreateVariable && (
+        {canManageVariables && (
           <section className="flex flex-col gap-3">
             <h2 className="text-lg font-medium text-ink">Add a variable</h2>
             <CreateVariableForm

@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { encryptSecret } from "@/lib/crypto/envelope";
 import { createClient } from "@/lib/supabase/server";
 import type { TeamRole } from "@/lib/teams/roles";
+import type { TablesUpdate } from "@/types/database";
 
 const KEY_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 500;
@@ -15,6 +16,8 @@ const DESCRIPTION_MAX_LENGTH = 500;
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 const CREATE_DENIED = "Only team admins and members can add variables.";
+const UPDATE_DENIED = "Only team admins and members can edit variables.";
+const DELETE_DENIED = "Only team admins and members can delete variables.";
 
 function validateKey(key: string): string | null {
   if (!key) return "Enter a variable key.";
@@ -143,4 +146,150 @@ export async function createVariable(
   revalidatePath(`/teams/${teamSlug}/projects/${projectId}/${environmentName}`);
 
   return { error: null, key: "", description: "" };
+}
+
+// Distinguishes "the client-side initial state, before any real submission"
+// from "the action actually ran and succeeded" — both have error: null, so
+// without this flag an effect watching for success would also fire on the
+// very first mount (when the edit form first appears), immediately closing
+// itself before the user typed anything.
+export type UpdateVariableState = {
+  error: string | null;
+  key: string;
+  description: string;
+  submitted: boolean;
+};
+
+export async function updateVariable(
+  _prevState: UpdateVariableState,
+  formData: FormData,
+): Promise<UpdateVariableState> {
+  const variableId = String(formData.get("variableId") ?? "");
+  const environmentId = String(formData.get("environmentId") ?? "");
+  const projectId = String(formData.get("projectId") ?? "");
+  const teamId = String(formData.get("teamId") ?? "");
+  const teamSlug = String(formData.get("teamSlug") ?? "");
+  const environmentName = String(formData.get("environmentName") ?? "");
+
+  const key = String(formData.get("key") ?? "")
+    .trim()
+    .toUpperCase();
+  const description = String(formData.get("description") ?? "").trim();
+  // Blank means "leave the value unchanged" — the literal rule from the
+  // phase prompt, not a validation shortcut. Read once, held only in this
+  // local, never logged, never echoed back in any returned state.
+  const value = String(formData.get("value") ?? "");
+
+  const keyError = validateKey(key);
+  if (keyError) return { error: keyError, key, description, submitted: true };
+
+  const descriptionError = validateDescription(description);
+  if (descriptionError) return { error: descriptionError, key, description, submitted: true };
+
+  if (!variableId || !environmentId || !projectId || !teamId || !teamSlug || !environmentName) {
+    return {
+      error: "Something went wrong. Reload the page and try again.",
+      key,
+      description,
+      submitted: true,
+    };
+  }
+
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = await createClient();
+
+  // Preflight only — RLS's own UPDATE policy ("member" minimum, same
+  // threshold as create) is what actually enforces this.
+  const role = await getCallerRole(supabase, teamId, user.id);
+  if (role === "readonly" || role === null) {
+    return { error: UPDATE_DENIED, key, description, submitted: true };
+  }
+
+  const update: TablesUpdate<"variables"> = {
+    key,
+    description: description || null,
+    updated_at: new Date().toISOString(),
+    updated_by: user.id,
+  };
+
+  // Only re-encrypt when a new value was actually entered. A fresh DEK is
+  // generated here exactly like Phase 24's create — never reuse the old
+  // one — but when the field was left blank, the encrypted columns aren't
+  // touched at all, which is also what keeps the old value's DEK alive for
+  // as long as that ciphertext itself is still in use.
+  if (value) {
+    const encrypted = encryptSecret(value);
+    update.encrypted_value = encrypted.encryptedValue;
+    update.encrypted_dek = encrypted.encryptedDek;
+    update.iv = encrypted.iv;
+    update.auth_tag = encrypted.authTag;
+  }
+
+  const { error } = await supabase
+    .from("variables")
+    .update(update)
+    .eq("id", variableId)
+    .eq("environment_id", environmentId);
+
+  if (error) {
+    return {
+      error:
+        error.code === "23505"
+          ? `A variable named ${key} already exists in this environment.`
+          : "Could not save the variable. Try again.",
+      key,
+      description,
+      submitted: true,
+    };
+  }
+
+  revalidatePath(`/teams/${teamSlug}/projects/${projectId}/${environmentName}`);
+
+  return { error: null, key, description, submitted: true };
+}
+
+export type DeleteVariableState = { error: string | null };
+
+export async function deleteVariable(
+  _prevState: DeleteVariableState,
+  formData: FormData,
+): Promise<DeleteVariableState> {
+  const variableId = String(formData.get("variableId") ?? "");
+  const environmentId = String(formData.get("environmentId") ?? "");
+  const projectId = String(formData.get("projectId") ?? "");
+  const teamId = String(formData.get("teamId") ?? "");
+  const teamSlug = String(formData.get("teamSlug") ?? "");
+  const environmentName = String(formData.get("environmentName") ?? "");
+
+  if (!variableId || !environmentId || !projectId || !teamId || !teamSlug || !environmentName) {
+    return { error: "Something went wrong. Reload the page and try again." };
+  }
+
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = await createClient();
+
+  // Preflight only — RLS's own DELETE policy ("member" minimum) enforces
+  // this regardless.
+  const role = await getCallerRole(supabase, teamId, user.id);
+  if (role === "readonly" || role === null) {
+    return { error: DELETE_DENIED };
+  }
+
+  const { error } = await supabase
+    .from("variables")
+    .delete()
+    .eq("id", variableId)
+    .eq("environment_id", environmentId);
+
+  if (error) {
+    return { error: "Could not delete the variable. Try again." };
+  }
+
+  revalidatePath(`/teams/${teamSlug}/projects/${projectId}/${environmentName}`);
+
+  return { error: null };
 }
