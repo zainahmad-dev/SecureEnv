@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { logAudit } from "@/lib/audit";
 import { requireTeamAccess } from "@/lib/auth/team-access";
 import { isDefaultEnvironmentName } from "@/lib/environments/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -81,21 +82,35 @@ export async function addEnvironment(
     .limit(1)
     .maybeSingle();
 
-  const { error } = await supabase.from("environments").insert({
-    project_id: projectId,
-    name,
-    sort_order: (last?.sort_order ?? -1) + 1,
-  });
+  const { data: created, error } = await supabase
+    .from("environments")
+    .insert({
+      project_id: projectId,
+      name,
+      sort_order: (last?.sort_order ?? -1) + 1,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !created) {
     return {
       error:
-        error.code === "23505"
+        error?.code === "23505"
           ? "An environment with that name already exists in this project."
           : "Could not add the environment. Try again.",
       name,
     };
   }
+
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "create",
+    targetType: "environment",
+    targetId: created.id,
+    environmentId: created.id,
+    metadata: { name },
+  });
 
   revalidatePath(`/teams/${teamSlug}/projects/${projectId}/${currentEnvironmentName}`);
 
@@ -114,7 +129,7 @@ type Target = { id: string; name: string; projectId: string };
  */
 async function loadTarget(
   formData: FormData,
-): Promise<{ error: string } | { target: Target; teamSlug: string }> {
+): Promise<{ error: string } | { target: Target; teamSlug: string; teamId: string; userId: string }> {
   const environmentId = String(formData.get("environmentId") ?? "");
   const projectId = String(formData.get("projectId") ?? "");
   const teamId = String(formData.get("teamId") ?? "");
@@ -147,6 +162,8 @@ async function loadTarget(
   return {
     target: { id: environment.id, name: environment.name, projectId: environment.project_id },
     teamSlug,
+    teamId,
+    userId: access.userId,
   };
 }
 
@@ -166,7 +183,7 @@ export async function renameEnvironment(
   const loaded = await loadTarget(formData);
   if ("error" in loaded) return { error: loaded.error, name };
 
-  const { target, teamSlug } = loaded;
+  const { target, teamSlug, teamId, userId } = loaded;
 
   if (target.name === name) {
     return { error: null, name };
@@ -189,6 +206,18 @@ export async function renameEnvironment(
     };
   }
 
+  // Logged before redirect() — it throws internally, so nothing after it
+  // would ever run.
+  await logAudit({
+    teamId,
+    userId,
+    action: "update",
+    targetType: "environment",
+    targetId: target.id,
+    environmentId: target.id,
+    metadata: { from: target.name, to: name },
+  });
+
   // The environment's name is its URL segment (Phase 19) — the page the user
   // is standing on (.../<oldName>) no longer resolves to anything once the
   // row's name has changed, so this has to navigate, not just revalidate.
@@ -204,7 +233,7 @@ export async function deleteEnvironment(
   const loaded = await loadTarget(formData);
   if ("error" in loaded) return { error: loaded.error };
 
-  const { target, teamSlug } = loaded;
+  const { target, teamSlug, teamId, userId } = loaded;
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -216,6 +245,15 @@ export async function deleteEnvironment(
   if (error) {
     return { error: "Could not delete the environment. Try again." };
   }
+
+  await logAudit({
+    teamId,
+    userId,
+    action: "delete",
+    targetType: "environment",
+    targetId: target.id,
+    metadata: { name: target.name },
+  });
 
   // Same reasoning as rename: the page the user is standing on no longer
   // exists once this environment is gone, so navigate rather than

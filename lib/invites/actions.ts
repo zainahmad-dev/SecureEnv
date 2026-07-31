@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { logAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth/session";
 import { requireTeamAccess } from "@/lib/auth/team-access";
 import { createInviteToken, hashInviteToken, isWellFormedInviteToken } from "@/lib/invites/token";
@@ -97,23 +98,36 @@ export async function inviteMember(
   const { token, tokenHash } = createInviteToken();
   const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
 
-  const { error: insertError } = await supabase.from("team_invites").insert({
-    team_id: teamId,
-    email,
-    role,
-    token_hash: tokenHash,
-    invited_by: access.userId,
-    expires_at: expiresAt.toISOString(),
-  });
+  const { data: created, error: insertError } = await supabase
+    .from("team_invites")
+    .insert({
+      team_id: teamId,
+      email,
+      role,
+      token_hash: tokenHash,
+      invited_by: access.userId,
+      expires_at: expiresAt.toISOString(),
+    })
+    .select("id")
+    .single();
 
-  if (insertError) {
+  if (insertError || !created) {
     // 23505 = unique_violation on the pending-invite index: someone else
     // invited this address between the revoke above and this insert.
-    if (insertError.code === "23505") {
+    if (insertError?.code === "23505") {
       return fail("There's already a pending invite for that email. Reload to see it.");
     }
     return fail("Could not create the invite. Try again.");
   }
+
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "invite",
+    targetType: "invite",
+    targetId: created.id,
+    metadata: { email, role },
+  });
 
   const requestHeaders = await headers();
   const origin = requestHeaders.get("origin") ?? `https://${requestHeaders.get("host") ?? ""}`;
@@ -169,6 +183,15 @@ export async function revokeInvite(
     return { error: "Could not revoke that invite." };
   }
 
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "update",
+    targetType: "invite",
+    targetId: inviteId,
+    metadata: { revoked: true },
+  });
+
   revalidatePath(`/teams/${teamSlug}/members`);
 
   return { error: null };
@@ -222,6 +245,32 @@ export async function acceptInvite(
   }
 
   if (data.status === "accepted" || data.status === "already_member") {
+    // accept_team_invite() returns a team slug/name, not a team_id — the one
+    // extra lookup needed to log this. Safe now (unlike before the RPC
+    // ran): the caller is confirmed a member of this team either way, so
+    // teams' own SELECT policy shows it to them. team_slug is only ever
+    // null for the failure statuses handled in the branch below, never for
+    // "accepted"/"already_member" — the guard is for the type, not a real
+    // runtime case.
+    if (data.team_slug) {
+      const { data: team } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("slug", data.team_slug)
+        .maybeSingle();
+
+      if (team) {
+        await logAudit({
+          teamId: team.id,
+          userId: user.id,
+          action: "invite",
+          targetType: "team",
+          targetId: team.id,
+          metadata: { event: data.status === "accepted" ? "invite_accepted" : "already_member" },
+        });
+      }
+    }
+
     redirect(`/teams/${data.team_slug}`);
   }
 

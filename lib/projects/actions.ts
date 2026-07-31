@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit";
 import { requireTeamAccess } from "@/lib/auth/team-access";
 import { createClient } from "@/lib/supabase/server";
 
@@ -69,6 +70,17 @@ export async function createProject(
     return { error: "Could not create the project. Try again.", name, description };
   }
 
+  // Logged before redirect() — it throws internally, so nothing after it
+  // would ever run.
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "create",
+    targetType: "project",
+    targetId: data.id,
+    metadata: { name },
+  });
+
   redirect(`/teams/${teamSlug}/projects/${data.id}`);
 }
 
@@ -110,6 +122,15 @@ export async function renameProject(
   if (error) {
     return { error: "Could not save changes. Try again.", name, description };
   }
+
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "update",
+    targetType: "project",
+    targetId: projectId,
+    metadata: { name },
+  });
 
   revalidatePath(`/teams/${teamSlug}/projects/${projectId}`);
   revalidatePath(`/teams/${teamSlug}/projects/${projectId}/settings`);
@@ -153,6 +174,15 @@ export async function deleteProject(
   if (error) {
     return { error: "Could not delete the project. Try again." };
   }
+
+  await logAudit({
+    teamId,
+    userId: access.userId,
+    action: "delete",
+    targetType: "project",
+    targetId: projectId,
+    metadata: { name: projectName },
+  });
 
   redirect(`/teams/${teamSlug}`);
 }
