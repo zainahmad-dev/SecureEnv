@@ -5,6 +5,7 @@ import { DeleteVariableButton } from "@/components/variables/DeleteVariableButto
 import { EditVariableForm } from "@/components/variables/EditVariableForm";
 import { ValueCell } from "@/components/variables/ValueCell";
 import { formatDate } from "@/lib/format/date";
+import { ENTRY_ANIMATION_CLASS, entryAnimationStyle } from "@/lib/ui/entry-animation";
 import type { VariableSummary } from "@/lib/variables/queries";
 
 const cellClass = "px-3 py-3 align-middle";
@@ -23,14 +24,18 @@ type RowContext = {
 
 export function VariableTableRow({
   variable,
+  index,
   ...context
-}: { variable: VariableSummary } & RowContext) {
+}: { variable: VariableSummary; index: number } & RowContext) {
   const [editing, setEditing] = useState(false);
   const { environmentId, projectId, teamId, teamSlug, environmentName, canManageVariables } = context;
 
   if (editing) {
     return (
-      <tr className="border-t border-line bg-card/40">
+      <tr
+        className={`border-t border-line bg-card/40 ${ENTRY_ANIMATION_CLASS}`}
+        style={entryAnimationStyle(index)}
+      >
         <td className={cellClass} colSpan={5}>
           <EditVariableForm
             variableId={variable.id}
@@ -50,7 +55,7 @@ export function VariableTableRow({
   }
 
   return (
-    <tr className="border-t border-line">
+    <tr className={`border-t border-line ${ENTRY_ANIMATION_CLASS}`} style={entryAnimationStyle(index)}>
       <td className={cellClass}>
         <code className="font-mono text-sm text-ink">{variable.key}</code>
       </td>

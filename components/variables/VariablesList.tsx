@@ -62,16 +62,16 @@ export function VariablesList({
           </thead>
 
           <tbody>
-            {variables.map((variable) => (
-              <VariableTableRow key={variable.id} variable={variable} {...rowContext} />
+            {variables.map((variable, index) => (
+              <VariableTableRow key={variable.id} variable={variable} index={index} {...rowContext} />
             ))}
           </tbody>
         </table>
       </div>
 
       <ul className="flex flex-col gap-3 min-[700px]:hidden">
-        {variables.map((variable) => (
-          <VariableCard key={variable.id} variable={variable} {...rowContext} />
+        {variables.map((variable, index) => (
+          <VariableCard key={variable.id} variable={variable} index={index} {...rowContext} />
         ))}
       </ul>
     </>
