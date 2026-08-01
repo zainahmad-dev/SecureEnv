@@ -29,6 +29,9 @@ export function AppShell({
   envAccentVar,
 }: AppShellProps) {
   const [isDrawerOpen, setDrawerOpen] = useState(false);
+  // Same one-liner Sidebar already uses to resolve "which of my teams is
+  // the current one" — GlobalSearch needs the slug too, to build result links.
+  const currentTeam = sidebar.teams.find((team) => team.id === sidebar.currentTeamId) ?? null;
 
   // Only listen while the drawer is open, so Escape elsewhere in the app is untouched.
   useEffect(() => {
@@ -76,6 +79,8 @@ export function AppShell({
               isDrawerOpen={isDrawerOpen}
               onMenuClick={() => setDrawerOpen(true)}
               breadcrumb={breadcrumb}
+              teamId={sidebar.currentTeamId}
+              teamSlug={currentTeam?.slug ?? null}
             />
             <main className="flex-1 px-4 py-6 min-[900px]:px-8">
               <div className="mx-auto w-full max-w-5xl">{children}</div>

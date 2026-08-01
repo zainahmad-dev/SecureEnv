@@ -7,7 +7,7 @@ import { EnvironmentTabs } from "@/components/environments/EnvironmentTabs";
 import { RenameEnvironmentForm } from "@/components/environments/RenameEnvironmentForm";
 import { AppShell } from "@/components/shell/AppShell";
 import { CreateVariableForm } from "@/components/variables/CreateVariableForm";
-import { VariablesList } from "@/components/variables/VariablesList";
+import { VariablesSection } from "@/components/variables/VariablesSection";
 import { getProjectActivityFeed } from "@/lib/audit/queries";
 import { getProjectEnvironments } from "@/lib/environments/queries";
 import { environmentAccentVar, environmentPurpose } from "@/lib/environments/presentation";
@@ -135,20 +135,15 @@ export default async function ProjectEnvironmentPage({
             )}
           </section>
 
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-medium text-ink">
-              Variables <span className="text-sm font-normal text-ink/50">({variables.length})</span>
-            </h2>
-            <VariablesList
-              variables={variables}
-              environmentId={current.id}
-              projectId={project.id}
-              teamId={team.id}
-              teamSlug={team.slug}
-              environmentName={current.name}
-              canManageVariables={canManageVariables}
-            />
-          </section>
+          <VariablesSection
+            variables={variables}
+            environmentId={current.id}
+            projectId={project.id}
+            teamId={team.id}
+            teamSlug={team.slug}
+            environmentName={current.name}
+            canManageVariables={canManageVariables}
+          />
 
           {/* Absent rather than disabled for readonly members. Reveal
               (Phase 26) and edit/delete (Phase 27) live inside VariablesList's
