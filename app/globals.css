@@ -57,3 +57,29 @@ body {
   color: var(--ink);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Phase 32: entry animations, both gated behind `motion-safe:` at the
+   call site (Tailwind's `animate-[...]` arbitrary value) rather than here
+   — the keyframes themselves are inert unless a `motion-safe:animate-*`
+   utility actually applies them, which prefers-reduced-motion prevents. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ActivityFeed } from "@/components/audit/ActivityFeed";
 import { AddEnvironmentForm } from "@/components/environments/AddEnvironmentForm";
 import { DeleteEnvironmentButton } from "@/components/environments/DeleteEnvironmentButton";
 import { EnvironmentTabs } from "@/components/environments/EnvironmentTabs";
@@ -7,6 +8,7 @@ import { RenameEnvironmentForm } from "@/components/environments/RenameEnvironme
 import { AppShell } from "@/components/shell/AppShell";
 import { CreateVariableForm } from "@/components/variables/CreateVariableForm";
 import { VariablesList } from "@/components/variables/VariablesList";
+import { getProjectActivityFeed } from "@/lib/audit/queries";
 import { getProjectEnvironments } from "@/lib/environments/queries";
 import { environmentAccentVar, environmentPurpose } from "@/lib/environments/presentation";
 import { getSidebarData } from "@/lib/shell/sidebar-data";
@@ -44,7 +46,14 @@ export default async function ProjectEnvironmentPage({
   const current = environments.find((env) => env.name === environmentName);
   if (!current) notFound();
 
-  const variables = await getEnvironmentVariables(current.id);
+  const [variables, activity] = await Promise.all([
+    getEnvironmentVariables(current.id),
+    getProjectActivityFeed(
+      team.id,
+      project.id,
+      environments.map((env) => env.id),
+    ),
+  ]);
 
   const canManageEnvironments = role !== "readonly";
   // Same gate as canManageEnvironments (RLS's "member" minimum for
@@ -61,105 +70,115 @@ export default async function ProjectEnvironmentPage({
       sidebar={sidebar}
       envAccentVar={environmentAccentVar(current.name)}
     >
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-ink">{project.name}</h1>
-            {project.description && (
-              <p className="mt-1 max-w-2xl text-ink/60">{project.description}</p>
+      {/* Right-hand column on wide screens, stacked below on narrow ones
+          (Phase 31) — `min-[1024px]` follows this file's own `min-[900px]`/
+          `min-[700px]` arbitrary-variant convention rather than introducing
+          Tailwind's default `lg:` alongside it. `items-start` keeps the
+          activity panel from stretching to the (usually much taller) main
+          column's height. */}
+      <div className="grid grid-cols-1 gap-6 min-[1024px]:grid-cols-[minmax(0,1fr)_18rem] min-[1024px]:items-start">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-ink">{project.name}</h1>
+              {project.description && (
+                <p className="mt-1 max-w-2xl text-ink/60">{project.description}</p>
+              )}
+            </div>
+
+            {/* Absent rather than disabled for non-admins — same pattern as the
+                members screen's action column. */}
+            {role === "admin" && (
+              <Link
+                href={`/teams/${team.slug}/projects/${project.id}/settings`}
+                className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-medium text-ink hover:bg-card"
+              >
+                Settings
+              </Link>
             )}
           </div>
 
-          {/* Absent rather than disabled for non-admins — same pattern as the
-              members screen's action column. */}
-          {role === "admin" && (
-            <Link
-              href={`/teams/${team.slug}/projects/${project.id}/settings`}
-              className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-medium text-ink hover:bg-card"
-            >
-              Settings
-            </Link>
-          )}
-        </div>
-
-        <EnvironmentTabs
-          teamSlug={team.slug}
-          projectId={project.id}
-          environments={environments}
-          activeName={current.name}
-        />
-
-        <section className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-lg font-medium capitalize text-ink">{current.name}</h2>
-            {purpose && <p className="text-sm text-ink/60">{purpose}</p>}
-          </div>
-
-          {/* Only non-default environments are editable at all — admin
-              rights alone aren't enough, the Phase 18 triggers reject a
-              rename/delete of a default regardless of role. */}
-          {role === "admin" && !current.isDefault && (
-            <div className="flex flex-wrap items-end gap-4">
-              <RenameEnvironmentForm
-                environmentId={current.id}
-                projectId={project.id}
-                teamId={team.id}
-                teamSlug={team.slug}
-                name={current.name}
-              />
-              <DeleteEnvironmentButton
-                environmentId={current.id}
-                projectId={project.id}
-                teamId={team.id}
-                teamSlug={team.slug}
-                environmentName={current.name}
-                variableCount={current.variableCount}
-              />
-            </div>
-          )}
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium text-ink">
-            Variables <span className="text-sm font-normal text-ink/50">({variables.length})</span>
-          </h2>
-          <VariablesList
-            variables={variables}
-            environmentId={current.id}
-            projectId={project.id}
-            teamId={team.id}
+          <EnvironmentTabs
             teamSlug={team.slug}
-            environmentName={current.name}
-            canManageVariables={canManageVariables}
+            projectId={project.id}
+            environments={environments}
+            activeName={current.name}
           />
-        </section>
 
-        {/* Absent rather than disabled for readonly members. Reveal
-            (Phase 26) and edit/delete (Phase 27) live inside VariablesList's
-            own row structure, not here. */}
-        {canManageVariables && (
+          <section className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-lg font-medium capitalize text-ink">{current.name}</h2>
+              {purpose && <p className="text-sm text-ink/60">{purpose}</p>}
+            </div>
+
+            {/* Only non-default environments are editable at all — admin
+                rights alone aren't enough, the Phase 18 triggers reject a
+                rename/delete of a default regardless of role. */}
+            {role === "admin" && !current.isDefault && (
+              <div className="flex flex-wrap items-end gap-4">
+                <RenameEnvironmentForm
+                  environmentId={current.id}
+                  projectId={project.id}
+                  teamId={team.id}
+                  teamSlug={team.slug}
+                  name={current.name}
+                />
+                <DeleteEnvironmentButton
+                  environmentId={current.id}
+                  projectId={project.id}
+                  teamId={team.id}
+                  teamSlug={team.slug}
+                  environmentName={current.name}
+                  variableCount={current.variableCount}
+                />
+              </div>
+            )}
+          </section>
+
           <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-medium text-ink">Add a variable</h2>
-            <CreateVariableForm
+            <h2 className="text-lg font-medium text-ink">
+              Variables <span className="text-sm font-normal text-ink/50">({variables.length})</span>
+            </h2>
+            <VariablesList
+              variables={variables}
               environmentId={current.id}
               projectId={project.id}
               teamId={team.id}
               teamSlug={team.slug}
               environmentName={current.name}
+              canManageVariables={canManageVariables}
             />
           </section>
-        )}
 
-        {/* Absent rather than disabled for readonly members — same pattern
-            used throughout the members and projects screens. */}
-        {canManageEnvironments && (
-          <AddEnvironmentForm
-            projectId={project.id}
-            teamId={team.id}
-            teamSlug={team.slug}
-            currentEnvironmentName={current.name}
-          />
-        )}
+          {/* Absent rather than disabled for readonly members. Reveal
+              (Phase 26) and edit/delete (Phase 27) live inside VariablesList's
+              own row structure, not here. */}
+          {canManageVariables && (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-lg font-medium text-ink">Add a variable</h2>
+              <CreateVariableForm
+                environmentId={current.id}
+                projectId={project.id}
+                teamId={team.id}
+                teamSlug={team.slug}
+                environmentName={current.name}
+              />
+            </section>
+          )}
+
+          {/* Absent rather than disabled for readonly members — same pattern
+              used throughout the members and projects screens. */}
+          {canManageEnvironments && (
+            <AddEnvironmentForm
+              projectId={project.id}
+              teamId={team.id}
+              teamSlug={team.slug}
+              currentEnvironmentName={current.name}
+            />
+          )}
+        </div>
+
+        <ActivityFeed rows={activity} teamSlug={team.slug} />
       </div>
     </AppShell>
   );
