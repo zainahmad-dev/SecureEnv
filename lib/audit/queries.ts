@@ -191,6 +191,75 @@ export async function getAuditLogExportRows(
   });
 }
 
+const ACTIVITY_FEED_SIZE = 8;
+
+const ACTIVITY_SELECT =
+  "id, action, target_type, target_id, environment_id, metadata, created_at, user_id, environments(name)";
+
+/**
+ * Last few events for a project's dashboard activity panel (Phase 31) —
+ * scoped to the whole project (every environment, plus project-level
+ * events like rename), not just the environment currently being viewed, so
+ * revealing a secret in any environment surfaces here. Two parallel
+ * queries rather than one `.or()` filter string: `.in()`/`.eq()` are
+ * parameterised by postgrest-js, so this avoids hand-building a raw
+ * PostgREST filter expression out of project/environment ids.
+ */
+export async function getProjectActivityFeed(
+  teamId: string,
+  projectId: string,
+  environmentIds: string[],
+  limit: number = ACTIVITY_FEED_SIZE,
+): Promise<AuditLogRow[]> {
+  const supabase = await createClient();
+
+  const [{ data: environmentRows }, { data: projectRows }] = await Promise.all([
+    environmentIds.length > 0
+      ? supabase
+          .from("audit_logs")
+          .select(ACTIVITY_SELECT)
+          .eq("team_id", teamId)
+          .in("environment_id", environmentIds)
+          .order("created_at", { ascending: false })
+          .limit(limit)
+      : Promise.resolve({ data: [] as never[] }),
+    supabase
+      .from("audit_logs")
+      .select(ACTIVITY_SELECT)
+      .eq("team_id", teamId)
+      .eq("target_type", "project")
+      .eq("target_id", projectId)
+      .order("created_at", { ascending: false })
+      .limit(limit),
+  ]);
+
+  const merged = [...(environmentRows ?? []), ...(projectRows ?? [])]
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0))
+    .slice(0, limit);
+
+  const actorIds = [
+    ...new Set(merged.map((row) => row.user_id).filter((id): id is string => id !== null)),
+  ];
+  const actors = await resolveActors(supabase, teamId, actorIds);
+
+  return merged.map((row) => {
+    const actor = row.user_id ? actors.get(row.user_id) : undefined;
+    return {
+      id: row.id,
+      action: row.action,
+      targetType: row.target_type,
+      targetId: row.target_id,
+      environmentId: row.environment_id,
+      environmentName: row.environments?.name ?? null,
+      metadata: (row.metadata as Record<string, unknown> | null) ?? null,
+      createdAt: row.created_at,
+      actorId: row.user_id,
+      actorEmail: actor?.email ?? null,
+      actorDisplayName: actor?.displayName ?? null,
+    };
+  });
+}
+
 export type AuditLogFilterOptions = {
   actors: { id: string; email: string | null; displayName: string | null }[];
   /** label is "<project> / <environment>" — environment names repeat across a team's projects (every project gets its own development/staging/production), so the bare name alone can't tell two apart. */
