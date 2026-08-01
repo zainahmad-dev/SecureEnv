@@ -5,6 +5,7 @@ import { DeleteVariableButton } from "@/components/variables/DeleteVariableButto
 import { EditVariableForm } from "@/components/variables/EditVariableForm";
 import { ValueCell } from "@/components/variables/ValueCell";
 import { formatDate } from "@/lib/format/date";
+import { ENTRY_ANIMATION_CLASS, entryAnimationStyle } from "@/lib/ui/entry-animation";
 import type { VariableSummary } from "@/lib/variables/queries";
 
 const focusRing =
@@ -21,14 +22,18 @@ type CardContext = {
 
 export function VariableCard({
   variable,
+  index,
   ...context
-}: { variable: VariableSummary } & CardContext) {
+}: { variable: VariableSummary; index: number } & CardContext) {
   const [editing, setEditing] = useState(false);
   const { environmentId, projectId, teamId, teamSlug, environmentName, canManageVariables } = context;
 
   if (editing) {
     return (
-      <li className="rounded-lg border border-line bg-card px-4 py-3">
+      <li
+        className={`rounded-lg border border-line bg-card px-4 py-3 ${ENTRY_ANIMATION_CLASS}`}
+        style={entryAnimationStyle(index)}
+      >
         <EditVariableForm
           variableId={variable.id}
           environmentId={environmentId}
@@ -46,7 +51,10 @@ export function VariableCard({
   }
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-line bg-card px-4 py-3">
+    <li
+      className={`flex flex-col gap-2 rounded-lg border border-line bg-card px-4 py-3 ${ENTRY_ANIMATION_CLASS}`}
+      style={entryAnimationStyle(index)}
+    >
       <div className="flex items-start justify-between gap-3">
         <code className="min-w-0 truncate font-mono text-sm text-ink">{variable.key}</code>
         <span className="shrink-0 whitespace-nowrap text-xs text-ink/50">
