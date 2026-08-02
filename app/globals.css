@@ -10,17 +10,28 @@
   /* Brand accent */
   --accent: #4f46e5;
 
-  /* Environment accents (development / staging / production) */
-  --accent-dev: #14b8a6;
-  --accent-staging: #f59e0b;
-  --accent-production: #e11d48;
+  /* Environment accents (development / staging / production). Deliberately
+     darker than a naive "bright teal/amber/crimson" pick — Phase 35's own
+     contrast audit found the obvious choices (#14b8a6, #f59e0b, #e11d48)
+     failing WCAG AA (2.49:1, 2.15:1, 4.39:1 against --card) wherever they're
+     used as actual text (badge labels, the "Public" tag, CopyButton's
+     "Copied" state) rather than as a large decorative fill. These pass
+     4.5:1+ against both --paper and --card while staying in the same hue
+     family, so the same three tokens stay safe to use for both text and
+     swatches — no separate "text-safe" token set. */
+  --accent-dev: #0f766e;
+  --accent-staging: #b45309;
+  --accent-production: #be123c;
 
   /* Semantic status (errors, destructive actions — distinct from the production accent) */
   --danger: #dc2626;
 }
 
+/* Dark values are shared between the automatic (prefers-color-scheme) and
+   manual (data-theme, Phase 35) paths — one block of values, two ways to
+   reach it, so they can never drift apart. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --paper: #0a0a0a;
     --ink: #ededed;
     --card: #171717;
@@ -34,6 +45,27 @@
 
     --danger: #f87171;
   }
+}
+
+/* Manual override (Phase 35) — set on <html> by the inline script in
+   app/layout.tsx before first paint (no-flash) and by ThemeToggle
+   thereafter. Never present at all means "follow the system", which the
+   @media block above already handles on its own. `:root[data-theme="dark"]`
+   has higher specificity than a bare `:root` inside a media query, so this
+   wins regardless of source order or system preference. */
+:root[data-theme="dark"] {
+  --paper: #0a0a0a;
+  --ink: #ededed;
+  --card: #171717;
+  --line: #2e2e2e;
+
+  --accent: #818cf8;
+
+  --accent-dev: #2dd4bf;
+  --accent-staging: #fbbf24;
+  --accent-production: #fb7185;
+
+  --danger: #f87171;
 }
 
 @theme inline {
