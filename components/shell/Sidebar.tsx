@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TeamSwitcher } from "@/components/shell/TeamSwitcher";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import type { SidebarData } from "@/lib/shell/sidebar-data";
 
 type SidebarProps = {
@@ -128,6 +129,11 @@ export function Sidebar({ isOpen, data, envAccentVar }: SidebarProps) {
             </ul>
           </nav>
         )}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 border-t border-line px-4 py-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink/50">Theme</span>
+        <ThemeToggle />
       </div>
 
       <div className="flex items-center gap-3 border-t border-line px-4 py-3">

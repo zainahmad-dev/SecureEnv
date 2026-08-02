@@ -35,12 +35,15 @@ export function MemberRoleForm({
   const isDirty = selected !== role;
 
   return (
-    <form action={formAction} className="flex flex-col items-start gap-1">
+    <form action={formAction} className="flex w-full flex-col items-start gap-1 min-[700px]:w-auto">
       <input type="hidden" name="memberId" value={memberId} />
       <input type="hidden" name="teamId" value={teamId} />
       <input type="hidden" name="teamSlug" value={teamSlug} />
 
-      <div className="flex items-center gap-2">
+      {/* Stacked and full-width below 700px (the same breakpoint
+          MembersTable switches from cards to a table at) — a touch target
+          this narrow shouldn't also be squeezed into half a row. */}
+      <div className="flex w-full flex-col gap-2 min-[700px]:w-auto min-[700px]:flex-row min-[700px]:items-center">
         <label htmlFor={`role-${memberId}`} className="sr-only">
           Role for {memberLabel}
         </label>
@@ -49,7 +52,7 @@ export function MemberRoleForm({
           name="role"
           value={selected}
           onChange={(event) => setSelected(event.target.value as TeamRole)}
-          className={`rounded-lg border border-line bg-paper px-2 py-1.5 text-sm text-ink ${focusRing}`}
+          className={`w-full rounded-lg border border-line bg-paper px-2 py-1.5 text-sm text-ink min-[700px]:w-auto ${focusRing}`}
         >
           {TEAM_ROLES.map((option) => (
             <option key={option} value={option}>
@@ -62,7 +65,7 @@ export function MemberRoleForm({
           <button
             type="submit"
             disabled={isPending}
-            className={`rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 ${focusRing}`}
+            className={`w-full rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 min-[700px]:w-auto ${focusRing}`}
           >
             {isPending ? "Saving…" : "Save"}
           </button>
