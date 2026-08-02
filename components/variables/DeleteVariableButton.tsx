@@ -35,7 +35,7 @@ export function DeleteVariableButton({
   // RemoveMemberButton: a native modal blocks the page and can't be styled,
   // and deleting a variable has no undo.
   return (
-    <form action={formAction} className="flex flex-col items-end gap-1">
+    <form action={formAction} className="flex w-full flex-col items-stretch gap-1 min-[700px]:w-auto min-[700px]:items-end">
       <input type="hidden" name="variableId" value={variableId} />
       <input type="hidden" name="environmentId" value={environmentId} />
       <input type="hidden" name="projectId" value={projectId} />
@@ -45,18 +45,18 @@ export function DeleteVariableButton({
       <input type="hidden" name="key" value={variableKey} />
 
       {confirming ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 min-[700px]:flex-row min-[700px]:items-center">
           <button
             type="submit"
             disabled={isPending}
-            className={`rounded-lg bg-danger px-2 py-1 text-xs font-medium text-paper hover:opacity-90 disabled:opacity-60 ${focusRing}`}
+            className={`w-full rounded-lg bg-danger px-2 py-1 text-xs font-medium text-paper hover:opacity-90 disabled:opacity-60 min-[700px]:w-auto ${focusRing}`}
           >
             {isPending ? "Deleting…" : "Confirm"}
           </button>
           <button
             type="button"
             onClick={() => setConfirming(false)}
-            className={`rounded-lg px-2 py-1 text-xs text-ink/70 hover:bg-card ${focusRing}`}
+            className={`w-full rounded-lg px-2 py-1 text-xs text-ink/70 hover:bg-card min-[700px]:w-auto ${focusRing}`}
           >
             Cancel
           </button>
@@ -66,14 +66,14 @@ export function DeleteVariableButton({
           type="button"
           onClick={() => setConfirming(true)}
           aria-label={`Delete ${variableKey}`}
-          className={`rounded-lg border border-line bg-paper px-2 py-1 text-xs font-medium text-danger hover:bg-danger/10 ${focusRing}`}
+          className={`w-full rounded-lg border border-line bg-paper px-2 py-1 text-xs font-medium text-danger hover:bg-danger/10 min-[700px]:w-auto ${focusRing}`}
         >
           Delete
         </button>
       )}
 
       {state.error && (
-        <p role="alert" className="max-w-40 text-right text-xs text-danger">
+        <p role="alert" className="text-left text-xs text-danger min-[700px]:max-w-40 min-[700px]:text-right">
           {state.error}
         </p>
       )}
