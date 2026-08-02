@@ -22,6 +22,7 @@ export function TeamSwitcher({ teams, currentTeamId }: TeamSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const currentTeam = teams.find((team) => team.id === currentTeamId) ?? null;
 
@@ -34,7 +35,13 @@ export function TeamSwitcher({ teams, currentTeamId }: TeamSwitcherProps) {
       }
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        // Only Escape restores focus to the trigger — an outside click
+        // already moved focus wherever the user clicked (or intentionally
+        // away), so forcing it back there would fight the user's own action.
+        triggerRef.current?.focus();
+      }
     }
 
     document.addEventListener("pointerdown", onPointerDown);
@@ -58,6 +65,7 @@ export function TeamSwitcher({ teams, currentTeamId }: TeamSwitcherProps) {
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}

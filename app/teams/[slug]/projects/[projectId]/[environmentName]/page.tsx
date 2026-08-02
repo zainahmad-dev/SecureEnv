@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActivityFeed } from "@/components/audit/ActivityFeed";
@@ -15,6 +16,17 @@ import { getSidebarData } from "@/lib/shell/sidebar-data";
 import { getProject } from "@/lib/projects/queries";
 import { getTeamAccess } from "@/lib/teams/queries";
 import { getEnvironmentVariables } from "@/lib/variables/queries";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; projectId: string; environmentName: string }>;
+}): Promise<Metadata> {
+  const { projectId, environmentName } = await params;
+  const project = await getProject(projectId);
+  const capitalized = environmentName.charAt(0).toUpperCase() + environmentName.slice(1);
+  return { title: project ? `${capitalized} · ${project.name}` : capitalized };
+}
 
 export default async function ProjectEnvironmentPage({
   params,

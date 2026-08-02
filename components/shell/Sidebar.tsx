@@ -24,8 +24,15 @@ export function Sidebar({ isOpen, data, envAccentVar }: SidebarProps) {
     <aside
       id="app-sidebar"
       aria-label="Sidebar"
-      className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-line bg-paper transition-transform duration-200 ease-in-out motion-reduce:transition-none min-[900px]:static min-[900px]:z-auto min-[900px]:w-64 min-[900px]:shrink-0 min-[900px]:translate-x-0 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
+      // `invisible` (not just off-screen via translate-x) when closed on
+      // mobile — visibility:hidden removes the whole subtree from tab
+      // order, unlike a transform alone. Without it, a keyboard user on a
+      // narrow viewport tabs through every off-screen drawer link before
+      // ever reaching visible content. `min-[900px]:visible` overrides it
+      // unconditionally on desktop, same as the other min-[900px]: rules
+      // here already ignore `isOpen` entirely.
+      className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-line bg-paper transition-transform duration-200 ease-in-out motion-reduce:transition-none min-[900px]:static min-[900px]:z-auto min-[900px]:w-64 min-[900px]:shrink-0 min-[900px]:translate-x-0 min-[900px]:visible ${
+        isOpen ? "translate-x-0 visible" : "-translate-x-full invisible"
       }`}
     >
       <div className="flex items-center gap-2 px-4 py-5">

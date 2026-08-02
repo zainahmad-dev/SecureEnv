@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { GitHubButton } from "@/components/auth/GitHubButton";
 import { LoginForm } from "@/components/auth/LoginForm";
+
+export const metadata: Metadata = { title: "Log in" };
 
 export default async function LoginPage({
   searchParams,

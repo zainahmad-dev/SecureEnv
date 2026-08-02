@@ -74,7 +74,7 @@ export function ThemeToggle() {
             role="radio"
             aria-checked={isActive}
             onClick={() => choose(option.value)}
-            className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${focusRing} ${
+            className={`rounded-md px-2 py-1 text-xs font-medium transition-colors motion-reduce:transition-none ${focusRing} ${
               isActive ? "bg-paper text-ink shadow-sm" : "text-ink/50 hover:text-ink"
             }`}
           >

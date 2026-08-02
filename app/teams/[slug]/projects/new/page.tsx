@@ -1,8 +1,19 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
 import { CreateProjectForm } from "@/components/projects/CreateProjectForm";
 import { getSidebarData } from "@/lib/shell/sidebar-data";
 import { getTeamAccess } from "@/lib/teams/queries";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const access = await getTeamAccess(slug);
+  return { title: access ? `New project · ${access.team.name}` : "New project" };
+}
 
 export default async function NewProjectPage({
   params,

@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { CreateTeamForm } from "@/components/teams/CreateTeamForm";
 import { getFirstTeamSlug } from "@/lib/teams/queries";
+
+export const metadata: Metadata = { title: "Create your team" };
 
 export default async function OnboardingPage() {
   const existingSlug = await getFirstTeamSlug();

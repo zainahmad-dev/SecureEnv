@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AuditFilterForm } from "@/components/audit/AuditFilterForm";
@@ -14,6 +15,16 @@ import {
 } from "@/lib/audit/queries";
 import { getSidebarData } from "@/lib/shell/sidebar-data";
 import { getTeamAccess } from "@/lib/teams/queries";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const access = await getTeamAccess(slug);
+  return { title: access ? `Audit log · ${access.team.name}` : "Audit log" };
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

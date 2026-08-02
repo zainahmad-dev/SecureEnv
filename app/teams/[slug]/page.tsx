@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -5,6 +6,16 @@ import { AppShell } from "@/components/shell/AppShell";
 import { getSidebarData } from "@/lib/shell/sidebar-data";
 import { getTeamAccess } from "@/lib/teams/queries";
 import { ROLE_LABELS } from "@/lib/teams/roles";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const access = await getTeamAccess(slug);
+  return { title: access?.team.name ?? "Team" };
+}
 
 export default async function TeamDashboardPage({
   params,

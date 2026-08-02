@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { InviteMemberForm } from "@/components/invites/InviteMemberForm";
 import { RevokeInviteButton } from "@/components/invites/RevokeInviteButton";
@@ -10,6 +11,16 @@ import { getTeamAccess, getTeamMembers } from "@/lib/teams/queries";
 import { ROLE_LABELS } from "@/lib/teams/roles";
 
 const badgeClass = "rounded-full border border-line bg-paper px-2 py-0.5 text-xs text-ink/70";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const access = await getTeamAccess(slug);
+  return { title: access ? `Members · ${access.team.name}` : "Members" };
+}
 
 export default async function TeamMembersPage({
   params,

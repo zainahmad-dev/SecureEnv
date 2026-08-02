@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { AppShell } from "@/components/shell/AppShell";
 import { CreateTeamForm } from "@/components/teams/CreateTeamForm";
 import { getSidebarData } from "@/lib/shell/sidebar-data";
+
+export const metadata: Metadata = { title: "Create a team" };
 
 // Reached from the team switcher's "Create team" action. Unlike /onboarding
 // (which exists only for a user with zero teams and redirects away the

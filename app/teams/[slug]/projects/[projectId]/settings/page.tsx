@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
 import { DeleteProjectSection } from "@/components/projects/DeleteProjectSection";
@@ -5,6 +6,16 @@ import { RenameProjectForm } from "@/components/projects/RenameProjectForm";
 import { getSidebarData } from "@/lib/shell/sidebar-data";
 import { getProject } from "@/lib/projects/queries";
 import { getTeamAccess } from "@/lib/teams/queries";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; projectId: string }>;
+}): Promise<Metadata> {
+  const { projectId } = await params;
+  const project = await getProject(projectId);
+  return { title: project ? `Settings · ${project.name}` : "Project settings" };
+}
 
 export default async function ProjectSettingsPage({
   params,

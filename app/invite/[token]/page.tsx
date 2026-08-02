@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { AcceptInviteForm } from "@/components/invites/AcceptInviteForm";
@@ -5,6 +6,16 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { describeExpiry } from "@/lib/format/expiry";
 import { getInvitePreview, type InvitePreview } from "@/lib/invites/queries";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/teams/roles";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+  const invite = await getInvitePreview(token);
+  return { title: invite.status === "valid" && invite.team_name ? `Join ${invite.team_name}` : "Invite" };
+}
 
 const linkClass = "font-medium text-accent hover:underline";
 
