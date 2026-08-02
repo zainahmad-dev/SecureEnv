@@ -25,7 +25,7 @@ export function RevokeInviteButton({
   );
 
   return (
-    <form action={formAction} className="flex flex-col items-end gap-1">
+    <form action={formAction} className="flex w-full flex-col items-stretch gap-1 min-[700px]:w-auto min-[700px]:items-end">
       <input type="hidden" name="inviteId" value={inviteId} />
       <input type="hidden" name="teamId" value={teamId} />
       <input type="hidden" name="teamSlug" value={teamSlug} />
@@ -38,7 +38,7 @@ export function RevokeInviteButton({
         type="submit"
         disabled={isPending}
         aria-label={`Revoke the invitation sent to ${email}`}
-        className={`rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/10 disabled:opacity-60 ${focusRing}`}
+        className={`w-full rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/10 disabled:opacity-60 min-[700px]:w-auto ${focusRing}`}
       >
         {isPending ? "Revoking…" : "Revoke"}
       </button>

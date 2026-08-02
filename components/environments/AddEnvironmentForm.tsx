@@ -41,7 +41,7 @@ export function AddEnvironmentForm({
       <input type="hidden" name="teamSlug" value={teamSlug} />
       <input type="hidden" name="currentEnvironmentName" value={currentEnvironmentName} />
 
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-col items-stretch gap-2 min-[700px]:flex-row min-[700px]:flex-wrap min-[700px]:items-end">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <label htmlFor="new-env-name" className="text-sm font-medium text-ink">
             Add a custom environment
@@ -57,14 +57,14 @@ export function AddEnvironmentForm({
             onChange={(event) => setName(event.target.value)}
             placeholder="preview"
             pattern="[a-z0-9-]+"
-            className={`w-full max-w-xs rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink/40 ${focusRing}`}
+            className={`w-full min-[700px]:max-w-xs rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink/40 ${focusRing}`}
           />
         </div>
 
         <button
           type="submit"
           disabled={isPending}
-          className={`shrink-0 rounded-lg border border-line bg-paper px-3 py-2 text-sm font-medium text-ink hover:bg-card disabled:opacity-60 ${focusRing}`}
+          className={`w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm font-medium text-ink hover:bg-card disabled:opacity-60 min-[700px]:w-auto min-[700px]:shrink-0 ${focusRing}`}
         >
           {isPending ? "Adding…" : "Add"}
         </button>
