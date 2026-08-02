@@ -67,7 +67,14 @@ export function GlobalSearch({
   // shell is visible in the viewport.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+      // Compared rather than lowercased, matching every other key check in
+      // this file. `event.key` is typed non-nullable, but this listener is on
+      // the bare document and fires for anything that dispatches a "keydown"
+      // — a browser extension or an automation tool dispatching a plain
+      // Event (not a real KeyboardEvent) has no `key` at all, and the
+      // previous `event.key.toLowerCase()` threw a TypeError on it, killing
+      // the handler. "k" and "K" are the only two values this ever needed.
+      if ((event.key === "k" || event.key === "K") && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         inputRef.current?.focus();
         inputRef.current?.select();
