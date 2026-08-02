@@ -128,7 +128,7 @@ export function RevealableValue({ variableId }: { variableId: string }) {
         </div>
         <div className="h-1 w-24 overflow-hidden rounded-full bg-ink/10">
           <div
-            className={`h-full rounded-full bg-accent transition-[width] ease-linear ${
+            className={`h-full rounded-full bg-accent transition-[width] ease-linear motion-reduce:transition-none ${
               collapsing ? "w-0" : "w-full"
             }`}
             style={{ transitionDuration: `${REVEAL_DURATION_MS}ms` }}
@@ -150,7 +150,7 @@ export function RevealableValue({ variableId }: { variableId: string }) {
         disabled={isLoading}
         aria-label={isLoading ? "Revealing value…" : "Click to reveal value"}
         aria-live="polite"
-        className={`inline-block h-4 w-28 rounded bg-ink/15 transition-opacity hover:opacity-70 disabled:opacity-50 ${focusRing}`}
+        className={`inline-block h-4 w-28 rounded bg-ink/15 transition-opacity hover:opacity-70 disabled:opacity-50 motion-reduce:transition-none ${focusRing}`}
       />
       {/* Hidden until hover/focus so a masked row reads as just a redaction
           bar at rest — visible via keyboard through group-focus-within,

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { hashInviteToken, isWellFormedInviteToken } from "@/lib/invites/token";
 import type { CompositeTypes, Enums } from "@/types/database";
@@ -20,8 +21,14 @@ const INVALID: InvitePreview = {
  * no account yet. get_invite_preview() is SECURITY DEFINER and executable by
  * anon precisely so this doesn't need the service-role client on a page any
  * stranger with a link can open.
+ *
+ * Wrapped in cache() (Phase 36) — the accept-invite page calls this for its
+ * own data and generateMetadata() calls it again for the page title; same
+ * per-request dedupe reasoning as getTeamAccess/getProject.
  */
-export async function getInvitePreview(token: string): Promise<InvitePreview> {
+export const getInvitePreview = cache(async function getInvitePreview(
+  token: string,
+): Promise<InvitePreview> {
   if (!isWellFormedInviteToken(token)) return INVALID;
 
   const supabase = await createClient();
@@ -34,7 +41,7 @@ export async function getInvitePreview(token: string): Promise<InvitePreview> {
   if (error || !data) return INVALID;
 
   return data;
-}
+});
 
 export type PendingInvite = {
   id: string;
