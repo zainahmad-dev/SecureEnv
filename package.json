@@ -16,14 +16,16 @@
     "test:projects": "tsx scripts/test-projects.ts",
     "test:environments": "tsx scripts/test-environments.ts",
     "seed": "tsx scripts/seed.ts",
-    "test:variables": "tsx scripts/test-variables.ts"
+    "test:variables": "tsx scripts/test-variables.ts",
+    "test:ai": "tsx scripts/test-ai.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.9",
     "next": "15.5.22",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

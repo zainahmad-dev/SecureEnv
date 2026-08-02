@@ -447,6 +447,28 @@ export type Database = {
           },
         ];
       };
+      // No client ever selects/inserts/updates this directly (see the
+      // Phase 37 migration's own comment) — listed here only for
+      // shape-completeness; the app only ever reaches it via
+      // increment_ai_rate_limit() below.
+      ai_rate_limit_windows: {
+        Row: {
+          user_id: string;
+          window_start: string;
+          request_count: number;
+        };
+        Insert: {
+          user_id: string;
+          window_start: string;
+          request_count?: number;
+        };
+        Update: {
+          user_id?: string;
+          window_start?: string;
+          request_count?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -503,6 +525,13 @@ export type Database = {
           email: string | null;
           display_name: string | null;
         }[];
+      };
+      // Atomically increments (or creates) the caller's own row for this
+      // hour's window and returns the new count — see lib/ai/rate-limit.ts.
+      // Keys off auth.uid() server-side, never a client-supplied user id.
+      increment_ai_rate_limit: {
+        Args: { p_window_start: string };
+        Returns: number;
       };
     };
     Enums: {

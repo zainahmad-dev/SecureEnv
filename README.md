@@ -44,6 +44,8 @@ Production, Preview, and Development). Values come from the Supabase dashboard:
 | `SUPABASE_SERVICE_ROLE_KEY` | The secret key (`sb_secret_...`). Bypasses Row Level Security; used only by server-only code (e.g. `/api/health`'s database check, the Phase 12 seed script) | **Secret — server-only.** Never prefix with `NEXT_PUBLIC_`, never import into a Client Component or `lib/supabase/client.ts` |
 | `INVITE_TOKEN_SECRET` | Keys the HMAC that turns a team invite token into the digest stored in `team_invites.token_hash`. The plaintext token is never stored, so this is what makes an invite link verifiable — and what keeps a database leak from yielding usable links | **Secret — server-only.** Rotating it invalidates every outstanding invite; existing memberships are unaffected |
 | `MASTER_KEY` | Encrypts every per-secret data-encryption-key (envelope encryption, `lib/crypto/master-key.ts`). Validated at server startup — the app refuses to boot without a well-formed one | **Secret — server-only, never stored in the database.** Never commit it. If it's lost, every stored secret is permanently unrecoverable by design, not a bug |
+| `GROQ_API_KEY` | Powers the AI features (`lib/ai/client.ts`, Phase 37+) via Groq's free-tier REST API — the one third-party credential this project actually uses. Get one at [console.groq.com/keys](https://console.groq.com/keys) | **Secret — server-only**, same convention as `SUPABASE_SERVICE_ROLE_KEY`/`MASTER_KEY` above. No secret variable value is ever sent to it |
+| `GROQ_MODEL` | Optional. Overrides the default Groq model without a code change | Not secret, but has no reason to be public either |
 
 Generate an invite secret with:
 
@@ -93,6 +95,10 @@ Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/bui
   never stored in plaintext, never logged, never sent to a third party.
 - Every table is governed by Postgres Row Level Security
   (`supabase/migrations/20260729160000_row_level_security.sql`).
+- AI calls (`lib/ai/client.ts`, Phase 37+) never include a decrypted secret
+  value — enforced in code (`assertNoSecretLikeContent` in
+  `lib/ai/guard.ts`) at the start of every `callAI()` call, not just by
+  trusting call sites to behave.
 - [`docs/permission-audit.md`](docs/permission-audit.md) — a full audit of
   every server action and route handler in this project for authorization,
   with a `requireTeamAccess()` helper applied consistently across all of
