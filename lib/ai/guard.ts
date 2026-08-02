@@ -47,9 +47,12 @@ const SECRET_LIKE_PATTERNS: RegExp[] = [
   /\b\w+:\/\/[^\s:@/]+:[^\s:@/]+@[^\s/]+/, // connection strings with an embedded user:password@host
 ];
 
+/** True if `text` contains anything shaped like a live secret value. */
+export function containsSecretLikeContent(text: string): boolean {
+  return SECRET_LIKE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 /** Throws PromptContainsSecretError if `text` contains anything shaped like a live secret value. */
 export function assertNoSecretLikeContent(text: string): void {
-  for (const pattern of SECRET_LIKE_PATTERNS) {
-    if (pattern.test(text)) throw new PromptContainsSecretError();
-  }
+  if (containsSecretLikeContent(text)) throw new PromptContainsSecretError();
 }

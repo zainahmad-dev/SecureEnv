@@ -1,4 +1,3 @@
-import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
 const WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -28,6 +27,15 @@ export class AIUserRateLimitedError extends Error {
  * server action — it does not call callAI() itself, so nothing enforces
  * this automatically; it's on each call site the same way requireTeamAccess()
  * is.
+ *
+ * Server-only by the same convention as lib/ai/client.ts and
+ * lib/supabase/admin.ts, not the `server-only` package. This file did import
+ * that package until Phase 38, left over from the attempt Phase 37 otherwise
+ * abandoned: it resolves under Next's bundler (which ships its own copy) but
+ * throws MODULE_NOT_FOUND under plain tsx/Vitest, which is how every
+ * scripts/test-*.ts in this project runs. It also protects nothing here —
+ * this module imports lib/supabase/server.ts, whose next/headers dependency
+ * already fails loudly in a client component.
  */
 export async function enforceAiRateLimit(): Promise<void> {
   const windowStart = new Date(Math.floor(Date.now() / WINDOW_MS) * WINDOW_MS);

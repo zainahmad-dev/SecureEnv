@@ -1,16 +1,11 @@
 import { decryptSecret, DecryptionError } from "@/lib/crypto/envelope";
 import { createClient } from "@/lib/supabase/server";
+import { isPublicKey } from "@/lib/variables/key";
 
-/**
- * NEXT_PUBLIC_ is Next.js's own convention for "gets inlined into the client
- * bundle at build time" — by that definition these values were never secret,
- * which is what lets the list decrypt and display them plainly without
- * breaking Phase 25's "no decryption on page load" rule (that rule is about
- * values that *are* secret).
- */
-export function isPublicKey(key: string): boolean {
-  return key.startsWith("NEXT_PUBLIC_");
-}
+// Re-exported so this module stays the one import site for everything about
+// reading variables; lib/variables/key.ts is what defines it now (Phase 38
+// needed it from a pure, non-server module too).
+export { isPublicKey };
 
 export type VariableSummary = {
   id: string;

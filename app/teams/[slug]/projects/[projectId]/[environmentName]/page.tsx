@@ -162,7 +162,19 @@ export default async function ProjectEnvironmentPage({
               own row structure, not here. */}
           {canManageVariables && (
             <section className="flex flex-col gap-3">
-              <h2 className="text-lg font-medium text-ink">Add a variable</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-medium text-ink">Add a variable</h2>
+
+                {/* Phase 38's generator, reached from the place someone is
+                    already standing when they realise they don't know what a
+                    service's variables are called. */}
+                <Link
+                  href={`/teams/${team.slug}/projects/${project.id}/${current.name}/generate`}
+                  className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-medium text-ink hover:bg-card"
+                >
+                  Not sure what you need?
+                </Link>
+              </div>
               <CreateVariableForm
                 environmentId={current.id}
                 projectId={project.id}
