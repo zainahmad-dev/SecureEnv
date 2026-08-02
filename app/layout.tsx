@@ -14,7 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SecureEnv",
+  // Phase 36: every page previously shared this exact literal title, with
+  // no way to tell them apart from a browser tab or a screen reader's page
+  // list (WCAG 2.4.2, Page Titled). The template lets each page.tsx set
+  // just its own segment (`title: "Members"`) via `export const metadata`
+  // or `generateMetadata()`; pages that don't override it still fall back
+  // to this exact default, unchanged.
+  title: { template: "%s · SecureEnv", default: "SecureEnv" },
   description: "The redaction ledger for team secrets.",
 };
 

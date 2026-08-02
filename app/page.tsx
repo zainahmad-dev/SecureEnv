@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { AppShell } from "@/components/shell/AppShell";
 import { getSidebarData } from "@/lib/shell/sidebar-data";
+
+export const metadata: Metadata = { title: "Overview" };
 
 const environments = [
   { name: "development", swatch: "bg-accent-dev" },
