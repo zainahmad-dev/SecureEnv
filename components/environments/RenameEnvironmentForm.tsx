@@ -33,13 +33,13 @@ export function RenameEnvironmentForm({
   const isDirty = value !== name;
 
   return (
-    <form action={formAction} className="flex flex-col items-start gap-1">
+    <form action={formAction} className="flex w-full flex-col items-start gap-1 min-[700px]:w-auto">
       <input type="hidden" name="environmentId" value={environmentId} />
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="teamId" value={teamId} />
       <input type="hidden" name="teamSlug" value={teamSlug} />
 
-      <div className="flex items-center gap-2">
+      <div className="flex w-full flex-col gap-2 min-[700px]:w-auto min-[700px]:flex-row min-[700px]:items-center">
         <label htmlFor={`env-name-${environmentId}`} className="sr-only">
           Environment name
         </label>
@@ -52,14 +52,14 @@ export function RenameEnvironmentForm({
           value={value}
           onChange={(event) => setValue(event.target.value)}
           pattern="[a-z0-9-]+"
-          className={`w-36 rounded-lg border border-line bg-paper px-2 py-1.5 text-sm text-ink ${focusRing}`}
+          className={`w-full rounded-lg border border-line bg-paper px-2 py-1.5 text-sm text-ink min-[700px]:w-36 ${focusRing}`}
         />
 
         {isDirty && (
           <button
             type="submit"
             disabled={isPending}
-            className={`rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 ${focusRing}`}
+            className={`w-full rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 min-[700px]:w-auto ${focusRing}`}
           >
             {isPending ? "Saving…" : "Save"}
           </button>
