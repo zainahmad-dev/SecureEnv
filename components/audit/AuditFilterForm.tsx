@@ -5,7 +5,7 @@ import { AUDIT_ACTIONS, type AuditLogFilters } from "@/lib/audit/queries";
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-paper";
 
-const fieldClass = `rounded-lg border border-line bg-paper px-2 py-1.5 text-sm text-ink ${focusRing}`;
+const fieldClass = `w-full rounded-lg border border-line bg-paper px-2 py-1.5 text-sm text-ink min-[700px]:w-auto ${focusRing}`;
 
 /**
  * A plain GET form — no client JS at all. Submitting it just navigates to
@@ -33,7 +33,7 @@ export function AuditFilterForm({
       action={`/teams/${teamSlug}/audit`}
       className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-card p-4"
     >
-      <div className="flex flex-col gap-1.5">
+      <div className="flex w-full flex-col gap-1.5 min-[700px]:w-auto">
         <label htmlFor="audit-filter-user" className="text-sm font-medium text-ink">
           User
         </label>
@@ -47,7 +47,7 @@ export function AuditFilterForm({
         </select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex w-full flex-col gap-1.5 min-[700px]:w-auto">
         <label htmlFor="audit-filter-action" className="text-sm font-medium text-ink">
           Action
         </label>
@@ -66,7 +66,7 @@ export function AuditFilterForm({
         </select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex w-full flex-col gap-1.5 min-[700px]:w-auto">
         <label htmlFor="audit-filter-environment" className="text-sm font-medium text-ink">
           Environment
         </label>
@@ -85,7 +85,7 @@ export function AuditFilterForm({
         </select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex w-full flex-col gap-1.5 min-[700px]:w-auto">
         <label htmlFor="audit-filter-from" className="text-sm font-medium text-ink">
           From
         </label>
@@ -98,7 +98,7 @@ export function AuditFilterForm({
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex w-full flex-col gap-1.5 min-[700px]:w-auto">
         <label htmlFor="audit-filter-to" className="text-sm font-medium text-ink">
           To
         </label>
@@ -111,17 +111,17 @@ export function AuditFilterForm({
         />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex w-full flex-col gap-2 min-[700px]:w-auto min-[700px]:flex-row min-[700px]:items-center min-[700px]:gap-3">
         <button
           type="submit"
-          className={`rounded-lg bg-accent px-4 py-2 text-sm font-medium text-paper hover:opacity-90 ${focusRing}`}
+          className={`w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-paper hover:opacity-90 min-[700px]:w-auto ${focusRing}`}
         >
           Filter
         </button>
         {hasActiveFilters && (
           <Link
             href={`/teams/${teamSlug}/audit`}
-            className={`rounded-lg px-2 py-2 text-sm text-ink/70 hover:bg-paper ${focusRing}`}
+            className={`w-full rounded-lg px-2 py-2 text-center text-sm text-ink/70 hover:bg-paper min-[700px]:w-auto ${focusRing}`}
           >
             Clear
           </Link>
