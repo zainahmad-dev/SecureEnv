@@ -95,7 +95,7 @@ export function TeamSwitcher({ teams, currentTeamId }: TeamSwitcherProps) {
             {filtered.length === 0 ? (
               <li className="px-3 py-2 text-sm text-ink/50">
                 {teams.length === 0
-                  ? "You're not on any team yet."
+                  ? "You're not on any team yet. Create one below, or ask a teammate to invite you."
                   : `No teams match "${query.trim()}".`}
               </li>
             ) : (

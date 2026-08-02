@@ -65,7 +65,19 @@ export function Sidebar({ isOpen, data, envAccentVar }: SidebarProps) {
           {!currentTeam ? (
             <p className="px-2 text-sm text-ink/50">Select a team to see its projects.</p>
           ) : projects.length === 0 ? (
-            <p className="px-2 text-sm text-ink/50">No projects yet.</p>
+            <p className="px-2 text-sm text-ink/50">
+              {canCreateProject ? (
+                <>
+                  No projects yet.{" "}
+                  <Link href={`/teams/${currentTeam.slug}/projects/new`} className="text-accent hover:underline">
+                    Create one
+                  </Link>{" "}
+                  to get started.
+                </>
+              ) : (
+                "No projects yet. Ask a team admin or member to create one."
+              )}
+            </p>
           ) : (
             <ul className="space-y-1">
               {projects.map((project) => (

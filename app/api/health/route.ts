@@ -23,10 +23,16 @@ async function checkDatabase(): Promise<DatabaseCheck> {
 
     return { ok: true, latencyMs: Date.now() - startedAt };
   } catch (err) {
+    // This route is unauthenticated and public by design (middleware's own
+    // PUBLIC_PATHS, Phase 6) — a raw connection/driver error could otherwise
+    // hand anyone hitting it internal details (hostnames, error codes,
+    // occasionally more). Log the real error server-side only; the client
+    // gets nothing beyond "the database check failed."
+    console.error("Health check database probe failed:", err);
     return {
       ok: false,
       latencyMs: Date.now() - startedAt,
-      error: err instanceof Error ? err.message : "Unknown database error",
+      error: "Database check failed.",
     };
   }
 }
