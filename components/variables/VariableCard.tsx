@@ -67,11 +67,11 @@ export function VariableCard({
       <ValueCell variable={variable} />
 
       {canManageVariables && (
-        <div className="flex items-center gap-2 border-t border-line pt-2">
+        <div className="flex flex-col gap-2 border-t border-line pt-2 min-[700px]:flex-row min-[700px]:items-center">
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className={`rounded-lg border border-line bg-paper px-2 py-1 text-xs font-medium text-ink hover:bg-card ${focusRing}`}
+            className={`w-full rounded-lg border border-line bg-paper px-2 py-1 text-xs font-medium text-ink hover:bg-card min-[700px]:w-auto ${focusRing}`}
           >
             Edit
           </button>

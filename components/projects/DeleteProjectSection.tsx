@@ -47,7 +47,7 @@ export function DeleteProjectSection({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className={`self-start rounded-lg border border-danger/40 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/10 ${focusRing}`}
+          className={`w-full self-start rounded-lg border border-danger/40 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/10 min-[700px]:w-auto ${focusRing}`}
         >
           Delete project
         </button>
@@ -79,11 +79,11 @@ export function DeleteProjectSection({
             </p>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 min-[700px]:flex-row min-[700px]:items-center">
             <button
               type="submit"
               disabled={!matches || isPending}
-              className={`rounded-lg bg-danger px-4 py-2 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 ${focusRing}`}
+              className={`w-full rounded-lg bg-danger px-4 py-2 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 min-[700px]:w-auto ${focusRing}`}
             >
               {isPending ? "Deleting…" : "Permanently delete"}
             </button>
@@ -93,7 +93,7 @@ export function DeleteProjectSection({
                 setConfirming(false);
                 setConfirmName("");
               }}
-              className={`rounded-lg px-3 py-2 text-sm text-ink/70 hover:bg-card ${focusRing}`}
+              className={`w-full rounded-lg px-3 py-2 text-sm text-ink/70 hover:bg-card min-[700px]:w-auto ${focusRing}`}
             >
               Cancel
             </button>

@@ -117,18 +117,18 @@ export function EditVariableForm({
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 min-[700px]:flex-row min-[700px]:items-center">
         <button
           type="submit"
           disabled={isPending}
-          className={`rounded-lg bg-accent px-4 py-2 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 ${focusRing}`}
+          className={`w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 min-[700px]:w-auto ${focusRing}`}
         >
           {isPending ? "Saving…" : "Save"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className={`rounded-lg px-3 py-2 text-sm text-ink/70 hover:bg-card ${focusRing}`}
+          className={`w-full rounded-lg px-3 py-2 text-sm text-ink/70 hover:bg-card min-[700px]:w-auto ${focusRing}`}
         >
           Cancel
         </button>
