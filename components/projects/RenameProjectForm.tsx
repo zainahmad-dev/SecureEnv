@@ -85,7 +85,7 @@ export function RenameProjectForm({
         <button
           type="submit"
           disabled={isPending}
-          className={`self-start rounded-lg bg-accent px-4 py-2 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 ${focusRing}`}
+          className={`w-full self-start rounded-lg bg-accent px-4 py-2 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-60 min-[700px]:w-auto ${focusRing}`}
         >
           {isPending ? "Saving…" : "Save changes"}
         </button>
