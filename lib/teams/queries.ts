@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import type { Enums } from "@/types/database";
@@ -80,8 +81,16 @@ export type TeamAccess = {
  *
  * Callers use this as the page-level gate, but it is not the authorisation:
  * RLS is. Every mutation re-checks server-side.
+ *
+ * Wrapped in cache() (Phase 36) — every page already calls this once for its
+ * own access check, and now generateMetadata() calls it again for the page
+ * title; without this they'd be two separate round trips to Supabase for
+ * the same request, same reasoning Phase 16 already applied to
+ * getCurrentUser/getCurrentProfile.
  */
-export async function getTeamAccess(slug: string): Promise<TeamAccess | null> {
+export const getTeamAccess = cache(async function getTeamAccess(
+  slug: string,
+): Promise<TeamAccess | null> {
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -110,7 +119,7 @@ export async function getTeamAccess(slug: string): Promise<TeamAccess | null> {
   after(() => setLastTeam(user.id, team.id));
 
   return { team, userId: user.id, role: membership.role };
-}
+});
 
 export type UserTeamSummary = {
   id: string;

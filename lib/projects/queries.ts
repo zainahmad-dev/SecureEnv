@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type ProjectSummary = {
@@ -73,8 +74,14 @@ export type ProjectDetail = {
  * A single project by id, or null if it doesn't exist or the caller's RLS
  * visibility excludes it (a non-member gets the same null a missing id
  * would — indistinguishable on purpose, same reasoning as getTeamAccess).
+ *
+ * Wrapped in cache() (Phase 36) — pages calling this for their own data
+ * also call it again from generateMetadata() for the page title; same
+ * per-request dedupe reasoning as getTeamAccess.
  */
-export async function getProject(projectId: string): Promise<ProjectDetail | null> {
+export const getProject = cache(async function getProject(
+  projectId: string,
+): Promise<ProjectDetail | null> {
   const supabase = await createClient();
 
   const { data: project } = await supabase
@@ -95,4 +102,4 @@ export async function getProject(projectId: string): Promise<ProjectDetail | nul
     createdAt: project.created_at,
     variableCount: counts.get(project.id) ?? 0,
   };
-}
+});
