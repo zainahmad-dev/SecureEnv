@@ -6,7 +6,18 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 // the whole point of an invitation. The page shows nothing without a valid
 // token, and accepting still requires a session (enforced in
 // accept_team_invite, not here).
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback", "/api/health", "/invite"];
+// /api/demo/reset (Phase 43) is public to the middleware because a Vercel
+// Cron invocation carries no user session — but it is not unauthenticated:
+// the route itself requires a CRON_SECRET bearer token and refuses every
+// request when that variable is unset.
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/auth/callback",
+  "/api/health",
+  "/api/demo/reset",
+  "/invite",
+];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));

@@ -12,6 +12,7 @@ export function VariablesList({
   teamSlug,
   environmentName,
   canManageVariables,
+  highlightKey,
 }: {
   variables: VariableSummary[];
   environmentId: string;
@@ -20,6 +21,7 @@ export function VariablesList({
   teamSlug: string;
   environmentName: string;
   canManageVariables: boolean;
+  highlightKey?: string;
 }) {
   if (variables.length === 0) {
     return (
@@ -32,7 +34,15 @@ export function VariablesList({
     );
   }
 
-  const rowContext = { environmentId, projectId, teamId, teamSlug, environmentName, canManageVariables };
+  const rowContext = {
+    environmentId,
+    projectId,
+    teamId,
+    teamSlug,
+    environmentName,
+    canManageVariables,
+    highlightKey,
+  };
 
   return (
     <>

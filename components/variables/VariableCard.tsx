@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DeleteVariableButton } from "@/components/variables/DeleteVariableButton";
 import { EditVariableForm } from "@/components/variables/EditVariableForm";
 import { ValueCell } from "@/components/variables/ValueCell";
@@ -18,6 +18,8 @@ type CardContext = {
   teamSlug: string;
   environmentName: string;
   canManageVariables: boolean;
+  /** Set by the scanner's "Fix" action (Phase 41) via ?highlight= — the one card to scroll to and mark. */
+  highlightKey?: string;
 };
 
 export function VariableCard({
@@ -26,7 +28,14 @@ export function VariableCard({
   ...context
 }: { variable: VariableSummary; index: number } & CardContext) {
   const [editing, setEditing] = useState(false);
-  const { environmentId, projectId, teamId, teamSlug, environmentName, canManageVariables } = context;
+  const cardRef = useRef<HTMLLIElement>(null);
+  const { environmentId, projectId, teamId, teamSlug, environmentName, canManageVariables, highlightKey } =
+    context;
+  const isHighlighted = highlightKey !== undefined && variable.key === highlightKey;
+
+  useEffect(() => {
+    if (isHighlighted) cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [isHighlighted]);
 
   if (editing) {
     return (
@@ -52,7 +61,9 @@ export function VariableCard({
 
   return (
     <li
-      className={`flex flex-col gap-2 rounded-lg border border-line bg-card px-4 py-3 ${ENTRY_ANIMATION_CLASS}`}
+      id={`variable-${variable.key}`}
+      ref={cardRef}
+      className={`flex flex-col gap-2 rounded-lg border px-4 py-3 ${isHighlighted ? "border-accent bg-accent/10" : "border-line bg-card"} ${ENTRY_ANIMATION_CLASS}`}
       style={entryAnimationStyle(index)}
     >
       <div className="flex items-start justify-between gap-3">

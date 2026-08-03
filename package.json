@@ -16,6 +16,8 @@
     "test:projects": "tsx scripts/test-projects.ts",
     "test:environments": "tsx scripts/test-environments.ts",
     "seed": "tsx scripts/seed.ts",
+    "demo:reset": "tsx scripts/reset-demo.ts",
+    "test:demo": "tsx scripts/test-demo.ts",
     "test:variables": "tsx scripts/test-variables.ts",
     "test:ai": "tsx scripts/test-ai.ts",
     "test:generator": "tsx scripts/test-env-generator.ts",

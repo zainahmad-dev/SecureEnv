@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DemoBanner } from "@/components/demo/DemoBanner";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { TopBar } from "@/components/shell/TopBar";
 import { ToastProvider } from "@/components/toast/ToastProvider";
@@ -111,6 +112,11 @@ export function AppShell({
         {envAccentVar && (
           <div aria-hidden="true" className="h-1 w-full shrink-0 bg-[var(--env-accent)]" />
         )}
+
+        {/* Full width and above the sidebar row, not inside the content
+            column — "this data isn't real" is a statement about the whole
+            screen, including the projects listed in the sidebar. */}
+        {sidebar.isDemo && <DemoBanner />}
 
         <div className="flex min-h-0 flex-1">
           <Sidebar isOpen={isDrawerOpen} data={sidebar} envAccentVar={envAccentVar} />

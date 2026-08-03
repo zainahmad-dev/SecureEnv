@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DeleteVariableButton } from "@/components/variables/DeleteVariableButton";
 import { EditVariableForm } from "@/components/variables/EditVariableForm";
 import { ValueCell } from "@/components/variables/ValueCell";
@@ -20,6 +20,8 @@ type RowContext = {
   teamSlug: string;
   environmentName: string;
   canManageVariables: boolean;
+  /** Set by the scanner's "Fix" action (Phase 41) via ?highlight= — the one row to scroll to and mark. */
+  highlightKey?: string;
 };
 
 export function VariableTableRow({
@@ -28,7 +30,17 @@ export function VariableTableRow({
   ...context
 }: { variable: VariableSummary; index: number } & RowContext) {
   const [editing, setEditing] = useState(false);
-  const { environmentId, projectId, teamId, teamSlug, environmentName, canManageVariables } = context;
+  const rowRef = useRef<HTMLTableRowElement>(null);
+  const { environmentId, projectId, teamId, teamSlug, environmentName, canManageVariables, highlightKey } =
+    context;
+  const isHighlighted = highlightKey !== undefined && variable.key === highlightKey;
+
+  // Only the currently-visible variant (desktop table vs. mobile card in
+  // VariableCard.tsx) actually has layout, so scrollIntoView on the other
+  // one is a harmless no-op — both fire, only one does anything.
+  useEffect(() => {
+    if (isHighlighted) rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [isHighlighted]);
 
   if (editing) {
     return (
@@ -55,7 +67,12 @@ export function VariableTableRow({
   }
 
   return (
-    <tr className={`border-t border-line ${ENTRY_ANIMATION_CLASS}`} style={entryAnimationStyle(index)}>
+    <tr
+      id={`variable-${variable.key}`}
+      ref={rowRef}
+      className={`border-t border-line ${isHighlighted ? "bg-accent/10" : ""} ${ENTRY_ANIMATION_CLASS}`}
+      style={entryAnimationStyle(index)}
+    >
       <td className={cellClass}>
         <code className="font-mono text-sm text-ink">{variable.key}</code>
       </td>

@@ -30,10 +30,16 @@ export async function generateMetadata({
 
 export default async function ProjectEnvironmentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; projectId: string; environmentName: string }>;
+  searchParams: Promise<{ highlight?: string }>;
 }) {
   const { slug, projectId, environmentName } = await params;
+  // Set by the scanner's "Fix" action (Phase 41) — the variable key to
+  // scroll to and highlight in the list below. Undefined on every ordinary
+  // visit to this page.
+  const { highlight: highlightKey } = await searchParams;
 
   const access = await getTeamAccess(slug);
   if (!access) notFound();
@@ -98,16 +104,30 @@ export default async function ProjectEnvironmentPage({
               )}
             </div>
 
-            {/* Absent rather than disabled for non-admins — same pattern as the
-                members screen's action column. */}
-            {role === "admin" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Visible to every role, unlike Settings below — a readonly
+                  member can already see whatever the last scan found
+                  (Phase 11's own SELECT policy on security_scans only
+                  requires readonly), so hiding this entry point would just
+                  make that score harder to find, not restrict anything. */}
               <Link
-                href={`/teams/${team.slug}/projects/${project.id}/settings`}
+                href={`/teams/${team.slug}/projects/${project.id}/scanner`}
                 className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-medium text-ink hover:bg-card"
               >
-                Settings
+                Security scan
               </Link>
-            )}
+
+              {/* Absent rather than disabled for non-admins — same pattern as the
+                  members screen's action column. */}
+              {role === "admin" && (
+                <Link
+                  href={`/teams/${team.slug}/projects/${project.id}/settings`}
+                  className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-medium text-ink hover:bg-card"
+                >
+                  Settings
+                </Link>
+              )}
+            </div>
           </div>
 
           <EnvironmentTabs
@@ -155,6 +175,7 @@ export default async function ProjectEnvironmentPage({
             teamSlug={team.slug}
             environmentName={current.name}
             canManageVariables={canManageVariables}
+            highlightKey={highlightKey}
           />
 
           {/* Absent rather than disabled for readonly members. Reveal
