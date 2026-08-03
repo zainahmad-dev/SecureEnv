@@ -19,7 +19,20 @@ const PUBLIC_PATHS = [
   "/invite",
 ];
 
+/**
+ * The marketing landing page (Phase 44), matched exactly and never as a
+ * prefix.
+ *
+ * It cannot go in PUBLIC_PATHS above: that list is prefix-matched, and
+ * `"/".startsWith("/")` is true for *every* path in the application — one
+ * entry would silently make the entire app public, with no error and no
+ * failing page to notice it by. Kept as its own exact-match set so that
+ * trap can't be reintroduced by someone adding a route here later.
+ */
+const PUBLIC_EXACT_PATHS = new Set(["/"]);
+
 function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_EXACT_PATHS.has(pathname)) return true;
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
