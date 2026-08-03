@@ -19,7 +19,8 @@
     "test:variables": "tsx scripts/test-variables.ts",
     "test:ai": "tsx scripts/test-ai.ts",
     "test:generator": "tsx scripts/test-env-generator.ts",
-    "test:scanner": "tsx scripts/test-scanner.ts"
+    "test:scanner": "tsx scripts/test-scanner.ts",
+    "test:scanner:ai": "tsx scripts/test-ai-scanner.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

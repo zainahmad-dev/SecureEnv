@@ -43,7 +43,14 @@ function looksLikeSecretName(key: string): boolean {
   return SECRET_NAME_PATTERN.test(key);
 }
 
-function daysSince(iso: string, now: Date): number | null {
+/**
+ * Whole days between `iso` and `now`, or null if the timestamp can't be
+ * parsed. Exported because the AI payload (lib/scanner/ai.ts) reports the
+ * same age to the model and must agree with the stale-variable rule about
+ * what "unknown" looks like — two independent date helpers in one folder is
+ * how those two quietly drift apart.
+ */
+export function daysSince(iso: string, now: Date): number | null {
   const then = new Date(iso).getTime();
   // A row with an unparseable timestamp is a data problem, not a security
   // finding — reporting it as "stale" would be a guess dressed up as a fact.
@@ -291,10 +298,26 @@ export const ENVIRONMENT_RULES = [
 export const PROJECT_RULES = [duplicateValues, missingKeysAcrossEnvironments] as const;
 
 /**
- * Every rule, over one project's decrypted variables, sorted most severe
- * first and then by environment and key so two runs over the same data
- * produce byte-identical output — which is what makes the Phase 40 merge and
- * the persisted scan row comparable between runs.
+ * Most severe first, then by environment, key, and rule id. Total and
+ * deterministic on purpose: two runs over the same data produce
+ * byte-identical output, which is what makes the Phase 40 merge and the
+ * persisted scan row comparable between runs.
+ *
+ * Returns a new array rather than sorting in place — the AI layer merges
+ * lists it doesn't own.
+ */
+export function sortFindings(findings: Finding[]): Finding[] {
+  return [...findings].sort(
+    (a, b) =>
+      compareSeverity(a.severity, b.severity) ||
+      a.environmentName.localeCompare(b.environmentName) ||
+      a.key.localeCompare(b.key) ||
+      a.ruleId.localeCompare(b.ruleId),
+  );
+}
+
+/**
+ * Every rule, over one project's decrypted variables.
  *
  * `now` is injected rather than read inside staleVariables so the 180-day
  * rule is testable without waiting six months or mutating the system clock.
@@ -313,11 +336,5 @@ export function runRuleBasedScan(project: ScanProject, now: Date = new Date()): 
     findings.push(...rule(project));
   }
 
-  return findings.sort(
-    (a, b) =>
-      compareSeverity(a.severity, b.severity) ||
-      a.environmentName.localeCompare(b.environmentName) ||
-      a.key.localeCompare(b.key) ||
-      a.ruleId.localeCompare(b.ruleId),
-  );
+  return sortFindings(findings);
 }
