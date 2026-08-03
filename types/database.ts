@@ -28,6 +28,7 @@ export type Database = {
           avatar_initials: string;
           last_team_id: string | null;
           created_at: string;
+          is_demo: boolean;
         };
         Insert: {
           id: string;
@@ -35,6 +36,7 @@ export type Database = {
           avatar_initials: string;
           last_team_id?: string | null;
           created_at?: string;
+          is_demo?: boolean;
         };
         Update: {
           id?: string;
@@ -42,6 +44,7 @@ export type Database = {
           avatar_initials?: string;
           last_team_id?: string | null;
           created_at?: string;
+          is_demo?: boolean;
         };
         Relationships: [
           {
@@ -492,6 +495,14 @@ export type Database = {
       };
       team_has_member_with_email: {
         Args: { p_team_id: string; p_email: string };
+        Returns: boolean;
+      };
+      // Phase 43. Called from the RESTRICTIVE policies that make the shared
+      // public demo account read-only; the app never needs to call it
+      // directly (lib/demo/guard.ts reads profiles.is_demo instead, since it
+      // already has the profile in hand).
+      is_demo_user: {
+        Args: { p_user_id?: string };
         Returns: boolean;
       };
       // `returns table (...)` is a set, so this one really does come back as an

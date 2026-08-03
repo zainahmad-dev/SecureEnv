@@ -16,6 +16,8 @@ type VariablesSectionProps = {
   teamSlug: string;
   environmentName: string;
   canManageVariables: boolean;
+  /** The variable key to scroll to and highlight — set via ?highlight= by the scanner's "Fix" action (Phase 41). */
+  highlightKey?: string;
 };
 
 /**
@@ -35,6 +37,7 @@ export function VariablesSection({
   teamSlug,
   environmentName,
   canManageVariables,
+  highlightKey,
 }: VariablesSectionProps) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query.trim(), 150);
@@ -99,6 +102,7 @@ export function VariablesSection({
           teamSlug={teamSlug}
           environmentName={environmentName}
           canManageVariables={canManageVariables}
+          highlightKey={highlightKey}
         />
       )}
     </section>

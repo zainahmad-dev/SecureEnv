@@ -75,6 +75,26 @@ concern at all — it only ever writes the caller's own `profiles` row,
 protected by the self-only column-grant RLS policy from Phase 7/16, not a
 team boundary.**
 
+## Addendum — Phase 43: the demo account
+
+`requireTeamAccess` gained one more check, ahead of the role lookup: if the
+session is the shared public demo account, it denies with an explanation of
+the demo instead of a permission error.
+
+Consolidating onto this one helper in Phase 28 is what made that a
+single-branch change rather than an edit to every file in the table above —
+and it means any entry point added *after* Phase 43 inherits the behaviour
+without anyone remembering to add it. The one action that can't inherit it
+is `createTeam`, for the same reason it needed a bespoke check in Phase 28:
+there is no existing team to pass in. It repeats the check inline.
+
+As everywhere else on this page, this is preflight only. The actual
+enforcement is a set of **restrictive** RLS policies added in the same
+migration, which subtract INSERT/UPDATE/DELETE from that account across
+every table regardless of which code path reaches the database.
+`npm run test:demo` verifies them by bypassing every entry point in the
+table above and writing straight to PostgREST.
+
 ## Why `POST /api/variables/[id]/reveal` doesn't use `requireTeamAccess`
 
 Every action above receives its resource's `teamId` directly — as a form
