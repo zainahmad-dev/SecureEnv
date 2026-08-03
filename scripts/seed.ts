@@ -9,27 +9,21 @@
  * variables are each looked up before being created; nothing here ever
  * deletes or overwrites what's already there. Unlike scripts/test-*.ts, this
  * script does NOT clean up after itself — the entire point is to leave real
- * data behind to explore.
+ * data behind to explore. To put an already-seeded demo *back* to this
+ * state, use `npm run demo:reset` (Phase 43), which rewrites contents
+ * without recreating the team, projects, or accounts.
  *
- * Demo login (fixed on purpose, not a secret — this is throwaway local
- * demo data, not anything the app protects):
- *   admin:    jordan@northstaragency.example
- *   member:   casey@northstaragency.example
- *   readonly: riley@northstaragency.example
- *   password (all three): NorthstarDemo123!
+ * Logins (fixed on purpose, not secrets — this is throwaway demo data, not
+ * anything the app protects). See lib/demo/fixture.ts for the list; the
+ * fourth account is the public one behind the "Explore the demo" button,
+ * flagged `is_demo` so the Phase 43 RESTRICTIVE policies make it read-only.
  *
  * Plants three problems for the Phase 39-41 scanner to find, all inside the
- * "Client Dashboard" project so a single project tells the whole demo story:
- *   - a live-looking Stripe key in development (non-production)
- *   - a too-short secret (JWT_SECRET, under 16 characters)
- *   - a value reused across two environments (NEXTAUTH_SECRET, staging = production)
- *
- * Every fake value below is deliberately shaped to NOT match a real secret-
- * scanning pattern (extra words/underscores breaking the base62-only
- * character class real provider keys use) — GitHub's push protection
- * flagged an earlier, too-realistic-looking fixture in this exact project
- * (lib/crypto/envelope.test.ts), so this script is written to never repeat
- * that even though every value here is already fake.
+ * "Client Dashboard" project so a single project tells the whole demo story.
+ * Those three, and the fixture they live in, moved to lib/demo/fixture.ts in
+ * Phase 43 so the reset routine builds byte-identical data from one source
+ * rather than a second copy that could drift out of agreement with
+ * scripts/test-scanner.ts's assertions.
  */
 
 import { config as loadEnv } from "dotenv";
@@ -42,87 +36,21 @@ const { createAdminClient } = await import("../lib/supabase/admin");
 const { supabaseUrl, supabaseAnonKey } = await import("../lib/supabase/env");
 const { encryptSecret } = await import("../lib/crypto/envelope");
 const { slugify } = await import("../lib/teams/slug");
+const {
+  DEMO_PASSWORD,
+  DEMO_PROJECT_NAMES,
+  DEMO_TEAM_NAME,
+  DEMO_USERS,
+  demoVariables,
+} = await import("../lib/demo/fixture");
 
 const admin = createAdminClient();
 
-const DEMO_PASSWORD = "NorthstarDemo123!";
-const TEAM_NAME = "Northstar Agency";
-const PROJECT_NAMES = ["Client Dashboard", "Marketing Website", "Support Portal"];
+const TEAM_NAME = DEMO_TEAM_NAME;
+const PROJECT_NAMES = DEMO_PROJECT_NAMES;
+const SEED_USERS = DEMO_USERS;
 
 type Role = Database["public"]["Enums"]["team_role"];
-
-type SeedUser = { email: string; label: string; role: Role };
-
-const SEED_USERS: SeedUser[] = [
-  { email: "jordan@northstaragency.example", label: "Jordan (admin)", role: "admin" },
-  { email: "casey@northstaragency.example", label: "Casey (member)", role: "member" },
-  { email: "riley@northstaragency.example", label: "Riley (readonly)", role: "readonly" },
-];
-
-type VariableSeed = { key: string; value: string };
-
-/**
- * Seven realistic key names per environment, every value parameterised by
- * project + environment so nothing collides by accident — the one
- * deliberate duplicate (below) is the only intentional exception.
- */
-function baseVariables(projectSlug: string, envName: string): VariableSeed[] {
-  const stripePrefix = envName === "production" ? "sk_live_" : "sk_test_";
-
-  return [
-    {
-      key: "DATABASE_URL",
-      value: `postgresql://demo_user:demo_password@localhost:5432/${projectSlug}_${envName}`,
-    },
-    {
-      key: "STRIPE_SECRET_KEY",
-      value: `${stripePrefix}FAKE_${projectSlug}_${envName}_DO_NOT_USE`,
-    },
-    {
-      key: "NEXTAUTH_SECRET",
-      value: `demo-nextauth-secret-${projectSlug}-${envName}-not-real`,
-    },
-    {
-      key: "RESEND_API_KEY",
-      value: `re_FAKE_${projectSlug}_${envName}_DO_NOT_USE`,
-    },
-    {
-      key: "NEXT_PUBLIC_APP_URL",
-      value: `https://${projectSlug}-${envName}.northstaragency.example`,
-    },
-    {
-      key: "REDIS_URL",
-      value: `redis://demo:demo@localhost:6379/${projectSlug}-${envName}`,
-    },
-    {
-      key: "JWT_SECRET",
-      value: `demo-jwt-secret-${projectSlug}-${envName}-not-real`,
-    },
-  ];
-}
-
-/** The three planted problems, applied only to "Client Dashboard". */
-function applyPlantedProblems(projectName: string, envName: string, vars: VariableSeed[]): VariableSeed[] {
-  if (projectName !== "Client Dashboard") return vars;
-
-  const REUSED_SECRET = "reused-fake-secret-across-envs-warning";
-
-  return vars.map((variable) => {
-    if (envName === "development" && variable.key === "STRIPE_SECRET_KEY") {
-      // Planted: a live-looking key in a non-production environment.
-      return { ...variable, value: "sk_live_FAKE_client-dashboard_development_DO_NOT_USE" };
-    }
-    if (envName === "development" && variable.key === "JWT_SECRET") {
-      // Planted: shorter than 16 characters.
-      return { ...variable, value: "short12" };
-    }
-    if ((envName === "staging" || envName === "production") && variable.key === "NEXTAUTH_SECRET") {
-      // Planted: identical value reused across two environments.
-      return { ...variable, value: REUSED_SECRET };
-    }
-    return variable;
-  });
-}
 
 async function findOrCreateUser(email: string): Promise<string> {
   const { data: existing, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
@@ -255,6 +183,19 @@ async function main() {
   }
   console.log("  Memberships ready.");
 
+  // Phase 43. Set through the service-role client because it has to be:
+  // `is_demo` is deliberately outside the column grant the `authenticated`
+  // role holds on profiles, so no signed-in client — including this
+  // account itself — can set or clear it.
+  for (const user of SEED_USERS.filter((candidate) => candidate.isDemo)) {
+    const { error } = await admin
+      .from("profiles")
+      .update({ is_demo: true })
+      .eq("id", userIds.get(user.email)!);
+    if (error) throw new Error(`Failed to flag the demo account: ${error.message}`);
+    console.log(`  Demo account flagged read-only: ${user.email}`);
+  }
+
   let createdVariables = 0;
   let skippedVariables = 0;
 
@@ -264,7 +205,7 @@ async function main() {
     const environments = await getEnvironments(projectId);
 
     for (const env of environments) {
-      const variables = applyPlantedProblems(projectName, env.name, baseVariables(projectSlug, env.name));
+      const variables = demoVariables(projectName, projectSlug, env.name);
 
       for (const variable of variables) {
         const created = await ensureVariable(env.id, variable.key, variable.value, adminUserId);
@@ -283,7 +224,10 @@ async function main() {
   for (const user of SEED_USERS) {
     console.log(`  ${user.label}: ${user.email}`);
   }
-  console.log(`  password (all three): ${DEMO_PASSWORD}`);
+  console.log(`  password (all accounts): ${DEMO_PASSWORD}`);
+  console.log(
+    "\nThe public demo account is also reachable with one click from /login — no password needed.",
+  );
 }
 
 main().catch((error) => {

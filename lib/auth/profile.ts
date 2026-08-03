@@ -14,7 +14,7 @@ export const getCurrentProfile = cache(async function getCurrentProfile(): Promi
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, display_name, avatar_initials, last_team_id, created_at")
+    .select("id, display_name, avatar_initials, last_team_id, created_at, is_demo")
     .eq("id", user.id)
     .single();
 

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
+import { DEMO_DENIED_MESSAGE, isDemoSession } from "@/lib/demo/guard";
 import { createClient } from "@/lib/supabase/server";
 import { roleAtLeast, type TeamRole } from "@/lib/teams/roles";
 
@@ -47,6 +48,21 @@ export async function requireTeamAccess(
 ): Promise<TeamAccessResult> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  // Checked before the role lookup, and deliberately from inside this
+  // helper rather than added to ~20 action files (Phase 43). Every mutating
+  // entry point in this app already funnels through here — that's what
+  // docs/permission-audit.md established — so this one branch is what makes
+  // "a demo visitor gets an explanation instead of a silent no-op" true
+  // everywhere at once, including in actions written after this.
+  //
+  // It's ordered first because it produces the *more specific* message: the
+  // demo account is a readonly member, so leaving it to the role check
+  // below would tell a visitor "only admins and members can do that", which
+  // is true but explains the wrong thing.
+  if (await isDemoSession()) {
+    return { ok: false, error: DEMO_DENIED_MESSAGE };
+  }
 
   const supabase = await createClient();
   const { data } = await supabase

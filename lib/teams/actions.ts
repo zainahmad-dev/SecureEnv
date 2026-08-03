@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { logAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth/session";
+import { DEMO_DENIED_MESSAGE, isDemoSession } from "@/lib/demo/guard";
 import { createClient } from "@/lib/supabase/server";
 import { setLastTeam } from "@/lib/teams/queries";
 import { isReservedSlug, slugify, withRandomSuffix } from "@/lib/teams/slug";
@@ -33,6 +34,16 @@ export async function createTeam(
   // redirect to /login like every other action in this codebase gives.
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  // The one mutating action that can't route through requireTeamAccess()
+  // (there is no existing team to check against), so Phase 43's demo check
+  // is repeated here explicitly rather than inherited. Without it, a demo
+  // visitor is the only caller in the app who could still write — the
+  // RESTRICTIVE policy on `teams` would reject create_team() anyway, but
+  // silently, as the generic "Could not create the team" below.
+  if (await isDemoSession()) {
+    return { error: DEMO_DENIED_MESSAGE, name };
+  }
 
   const supabase = await createClient();
   const baseSlug = slugify(name);

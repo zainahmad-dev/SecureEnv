@@ -12,6 +12,18 @@ export type SidebarData = {
     initials: string;
     email: string;
   };
+  /**
+   * Whether this session is the shared public demo account (Phase 43) —
+   * what AppShell uses to decide whether to render the demo banner.
+   *
+   * It rides along here rather than as its own AppShell prop for one
+   * reason: this function is already the single place every page resolves
+   * "who is the current user" for the shell, and it already has the profile
+   * row in hand. A separate prop would mean touching all six AppShell call
+   * sites and re-fetching the same row to answer a question the data here
+   * already contains.
+   */
+  isDemo: boolean;
 };
 
 /**
@@ -42,5 +54,6 @@ export async function getSidebarData(currentTeamId: string | null = null): Promi
       initials: profile?.avatar_initials ?? "??",
       email: user?.email ?? "",
     },
+    isDemo: profile?.is_demo ?? false,
   };
 }
