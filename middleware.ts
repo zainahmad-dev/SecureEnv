@@ -20,8 +20,14 @@ const PUBLIC_PATHS = [
 ];
 
 /**
- * The marketing landing page (Phase 44), matched exactly and never as a
- * prefix.
+ * The root route, matched exactly and never as a prefix.
+ *
+ * `/` has no content of its own — it redirects to /login (app/page.tsx). It
+ * stays public so that redirect is the only hop. Were it protected instead,
+ * middleware would send a signed-out visitor to `/login?next=%2F`, and a
+ * successful login would then follow that `next` back to `/`, which
+ * redirects to /login again — landing them on the login form they just
+ * used.
  *
  * It cannot go in PUBLIC_PATHS above: that list is prefix-matched, and
  * `"/".startsWith("/")` is true for *every* path in the application — one
