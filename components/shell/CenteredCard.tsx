@@ -1,3 +1,4 @@
+import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 
 export function CenteredCard({ children }: { children: React.ReactNode }) {
@@ -6,9 +7,7 @@ export function CenteredCard({ children }: { children: React.ReactNode }) {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-paper">
-              SE
-            </span>
+            <Logo size={32} />
             <span className="text-base font-semibold text-ink">SecureEnv</span>
           </div>
           <ThemeToggle />

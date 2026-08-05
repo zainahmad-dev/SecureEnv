@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/brand/Logo";
 import { TeamSwitcher } from "@/components/shell/TeamSwitcher";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import type { SidebarData } from "@/lib/shell/sidebar-data";
@@ -36,8 +37,8 @@ export function Sidebar({ isOpen, data, envAccentVar }: SidebarProps) {
       }`}
     >
       <div className="flex items-center gap-2 px-4 py-5">
-        <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-paper">
-          SE
+        <span className="relative flex h-8 w-8 shrink-0">
+          <Logo size={32} />
           {/* The environment status dot — reads --env-accent by inheritance
               from the AppShell root, so it never has to know which of the
               three colours is active, only whether one is. */}
